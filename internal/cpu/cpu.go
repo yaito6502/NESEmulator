@@ -52,34 +52,40 @@ func NewCPU() *CPU {
 	return cpu
 }
 
-func (cpu CPU) push(data uint8) {
+func (cpu *CPU) push(data uint8) {
 	address := 0x0100 + uint16(cpu.S)
 	cpu.Mem.Store(address, data)
 	cpu.S--
 }
 
-func (cpu CPU) pop() uint8 {
+func (cpu *CPU) pop() uint8 {
 	cpu.S++
 	address := 0x0100 + uint16(cpu.S)
 	return (cpu.Mem.Fetch(address))
 }
 
-func (cpu CPU) storePC(high byte, low byte) {
+func (cpu *CPU) fetch() byte {
+	data := cpu.Mem.Fetch(cpu.PC)
+	cpu.PC++
+	return data
+}
+
+func (cpu *CPU) storePC(high byte, low byte) {
 	ext_high := uint16(high)
 	ext_low := uint16(low)
 	cpu.PC = ext_high<<8 + ext_low
 }
 
-func (cpu CPU) fetchPC() (high byte, log byte) {
+func (cpu *CPU) fetchPC() (high byte, log byte) {
 	return byte(cpu.PC & 0xFF00), byte(cpu.PC & 0x00FF)
 }
 
-func (cpu CPU) reset() {
+func (cpu *CPU) reset() {
 	cpu.P.I = true
 	cpu.storePC(cpu.Mem.Fetch(0xFFFD), cpu.Mem.Fetch(0xFFFC))
 }
 
-func (cpu CPU) nmi() {
+func (cpu *CPU) nmi() {
 	cpu.P.B = false
 	high, low := cpu.fetchPC()
 	cpu.push(high)
@@ -89,7 +95,7 @@ func (cpu CPU) nmi() {
 	cpu.storePC(cpu.Mem.Fetch(0xFFFB), cpu.Mem.Fetch(0xFFFA))
 }
 
-func (cpu CPU) irq() {
+func (cpu *CPU) irq() {
 	if cpu.P.I {
 		return
 	}
@@ -102,7 +108,7 @@ func (cpu CPU) irq() {
 	cpu.storePC(cpu.Mem.Fetch(0xFFFF), cpu.Mem.Fetch(0xFFFE))
 }
 
-func (cpu CPU) brk() {
+func (cpu *CPU) brk() {
 	if cpu.P.I {
 		return
 	}
