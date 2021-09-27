@@ -1,6 +1,8 @@
 package cpu
 
-import "github.com/yaito6502/NESEmulator/internal/mem"
+import (
+	"github.com/yaito6502/NESEmulator/internal/mem"
+)
 
 type Instructions interface {
 	push(uint8)
@@ -78,46 +80,4 @@ func (cpu *CPU) storePC(high byte, low byte) {
 
 func (cpu *CPU) fetchPC() (high byte, log byte) {
 	return byte(cpu.PC & 0xFF00), byte(cpu.PC & 0x00FF)
-}
-
-func (cpu *CPU) reset() {
-	cpu.P.I = true
-	cpu.storePC(cpu.Mem.Fetch(0xFFFD), cpu.Mem.Fetch(0xFFFC))
-}
-
-func (cpu *CPU) nmi() {
-	cpu.P.B = false
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.Mem.Fetch(0xFFFB), cpu.Mem.Fetch(0xFFFA))
-}
-
-func (cpu *CPU) irq() {
-	if cpu.P.I {
-		return
-	}
-	cpu.P.B = true
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.Mem.Fetch(0xFFFF), cpu.Mem.Fetch(0xFFFE))
-}
-
-func (cpu *CPU) brk() {
-	if cpu.P.I {
-		return
-	}
-	cpu.P.B = true
-	cpu.PC++
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.Mem.Fetch(0xFFFF), cpu.Mem.Fetch(0xFFFE))
 }
