@@ -179,28 +179,28 @@ func (cpu *CPU) irq() {
 
 //転送命令
 func (cpu *CPU) lda(opeland uint16) {
-	fmt.Print(cpu.PC, " lda\n")
+	fmt.Print(cpu.PC, " lda")
 	cpu.A = cpu.mem.Fetch(opeland)
 	cpu.P.N = (cpu.A>>7)&1 == 1
 	cpu.P.Z = (cpu.A == 0)
 }
 
 func (cpu *CPU) ldx(opeland uint16) {
-	fmt.Print(cpu.PC, " ldx\n")
+	fmt.Print(cpu.PC, " ldx")
 	cpu.X = cpu.mem.Fetch(opeland)
 	cpu.P.N = (cpu.X>>7)&1 == 1
 	cpu.P.Z = (cpu.X == 0)
 }
 
 func (cpu *CPU) ldy(opeland uint16) {
-	fmt.Print(cpu.PC, " ldy\n")
+	fmt.Print(cpu.PC, " ldy")
 	cpu.Y = cpu.mem.Fetch(opeland)
 	cpu.P.N = (cpu.Y>>7)&1 == 1
 	cpu.P.Z = (cpu.Y == 0)
 }
 
 func (cpu *CPU) sta(opeland uint16) {
-	fmt.Print(cpu.PC, " sta\n")
+	fmt.Print(cpu.PC, " sta")
 	cpu.mem.Store(opeland, cpu.A)
 }
 
@@ -229,7 +229,7 @@ func (cpu *CPU) txa(opeland uint16) {
 }
 
 func (cpu *CPU) txs(opeland uint16) {
-	fmt.Print(cpu.PC, " txs\n")
+	fmt.Print(cpu.PC, " txs")
 	cpu.S = cpu.X
 }
 
@@ -275,7 +275,7 @@ func (cpu *CPU) dex(opeland uint16) {
 }
 
 func (cpu *CPU) dey(opeland uint16) {
-	fmt.Print(cpu.PC, " dey\n")
+	fmt.Print(cpu.PC, " dey")
 	cpu.Y--
 	cpu.P.N = (cpu.Y>>7)&1 == 1
 	cpu.P.Z = (cpu.Y == 0)
@@ -290,7 +290,7 @@ func (cpu *CPU) inc(opeland uint16) {
 }
 
 func (cpu *CPU) inx(opeland uint16) {
-	fmt.Print(cpu.PC, " inx\n")
+	fmt.Print(cpu.PC, " inx")
 	cpu.X++
 	cpu.P.N = (cpu.X>>7)&1 == 1
 	cpu.P.Z = (cpu.X == 0)
@@ -339,7 +339,7 @@ func (cpu *CPU) plp(opeland uint16) {
 
 //ジャンプ命令
 func (cpu *CPU) jmp(opeland uint16) {
-	fmt.Print(cpu.PC, " jmp\n")
+	fmt.Print(cpu.PC, " jmp")
 	cpu.PC = opeland
 }
 
@@ -373,7 +373,7 @@ func (cpu *CPU) bmi(opeland uint16) {
 }
 
 func (cpu *CPU) bne(opeland uint16) {
-	fmt.Print(cpu.PC, " bne\n")
+	fmt.Print(cpu.PC, " bne")
 	if !cpu.P.Z {
 		cpu.PC = opeland
 	} else {
@@ -418,13 +418,13 @@ func (cpu *CPU) sed(opeland uint16) {
 }
 
 func (cpu *CPU) sei(opeland uint16) {
-	fmt.Print(cpu.PC, " sei\n")
+	fmt.Print(cpu.PC, " sei")
 	cpu.P.I = true
 }
 
 //その他の命令
 func (cpu *CPU) brk(opeland uint16) {
-	fmt.Print(cpu.PC, " brk\n")
+	fmt.Print(cpu.PC, " brk")
 	if cpu.P.I {
 		return
 	}

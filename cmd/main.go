@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/yaito6502/NESEmulator/internal/cartridge"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
 	"github.com/yaito6502/NESEmulator/internal/mem"
@@ -14,6 +17,7 @@ func main() {
 	}
 	cpu := cpu.NewCPU(mem)
 	for {
-		cpu.Run()
+		fmt.Print(" ", cpu.Run(), "\n")
+		time.Sleep(time.Millisecond * 100)
 	}
 }
