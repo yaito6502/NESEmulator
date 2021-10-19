@@ -5,11 +5,6 @@ import (
 	"log"
 )
 
-type Memory interface {
-	Fetch(uint16) byte
-	Store(uint16, uint8)
-}
-
 type MemoryMap struct {
 	wram           [0x0800]byte
 	wram_mirror    [0x1800]byte
@@ -22,7 +17,12 @@ type MemoryMap struct {
 	prg_rom2       [0x4000]byte
 }
 
-func (mem MemoryMap) calcAccessMemory(address uint16) (*byte, error) {
+func NewMemory() *MemoryMap {
+	memory := new(MemoryMap)
+	return memory
+}
+
+func (mem *MemoryMap) assignAccessMemory(address uint16) (*byte, error) {
 	switch {
 	case address <= 0x07FF:
 		return &mem.wram[address], nil
@@ -47,16 +47,16 @@ func (mem MemoryMap) calcAccessMemory(address uint16) (*byte, error) {
 	}
 }
 
-func (mem MemoryMap) Fetch(address uint16) byte {
-	data, err := mem.calcAccessMemory(address)
+func (mem *MemoryMap) Fetch(address uint16) byte {
+	data, err := mem.assignAccessMemory(address)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return *data
 }
 
-func (mem MemoryMap) Store(address uint16, data uint8) {
-	ptr, err := mem.calcAccessMemory(address)
+func (mem *MemoryMap) Store(address uint16, data uint8) {
+	ptr, err := mem.assignAccessMemory(address)
 	if err != nil {
 		log.Fatal(err)
 	}
