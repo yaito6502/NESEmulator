@@ -5,13 +5,18 @@ import (
 	"log"
 )
 
-/*
 type Cartridge struct {
-	program_rom   []byte
-	character_rom []byte
-}*/
+	ProgramRom   []byte
+	CharacterRom []byte
+}
 
-func AttachCartridge(filename string) ([]byte, []byte) {
+func NewCartridge(filename string) *Cartridge {
+	cart := new(Cartridge)
+	cart.ProgramRom, cart.CharacterRom = attachCartridge(filename)
+	return cart
+}
+
+func attachCartridge(filename string) ([]byte, []byte) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal()
