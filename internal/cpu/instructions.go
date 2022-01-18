@@ -124,16 +124,16 @@ func (cpu *CPU) relativeAddressing() uint16 {
 func (cpu *CPU) indexedIndirectAddressing() uint16 {
 	low := cpu.fetch() + cpu.X
 	high := uint16(0x0000)
-	low1 := uint16(cpu.mem.Fetch(uint16(high<<8) + uint16(low) + 1))
-	high1 := uint16(cpu.mem.Fetch(uint16(high<<8) + uint16(low)))
+	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
+	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
 	return high1<<8 + low1
 }
 
 func (cpu *CPU) indirectIndexedAddressing() uint16 {
 	low := cpu.fetch()
 	high := uint16(0x0000)
-	low1 := uint16(cpu.mem.Fetch(uint16(high<<8) + uint16(low) + 1))
-	high1 := uint16(cpu.mem.Fetch(uint16(high<<8) + uint16(low)))
+	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
+	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
 	return high1<<8 + low1 + uint16(cpu.Y)
 }
 
@@ -148,7 +148,7 @@ func (cpu *CPU) absoluteIndirectAddressing() uint16 {
 /*
 func (cpu *CPU) reset() {
 	cpu.P.I = true
-	cpu.storePC(cpu.mem.Fetch(0xFFFD), cpu.mem.Fetch(0xFFFC))
+	cpu.storePC(cpu.bus.Read(0xFFFD), cpu.bus.Read(0xFFFC))
 }
 
 func (cpu *CPU) nmi() {
@@ -158,7 +158,7 @@ func (cpu *CPU) nmi() {
 	cpu.push(low)
 	//cpu.push(cpu.P)
 	cpu.P.I = true
-	cpu.storePC(cpu.mem.Fetch(0xFFFB), cpu.mem.Fetch(0xFFFA))
+	cpu.storePC(cpu.bus.Read(0xFFFB), cpu.bus.Read(0xFFFA))
 }
 
 func (cpu *CPU) irq() {
@@ -171,7 +171,7 @@ func (cpu *CPU) irq() {
 	cpu.push(low)
 	//cpu.push(cpu.P)
 	cpu.P.I = true
-	cpu.storePC(cpu.mem.Fetch(0xFFFF), cpu.mem.Fetch(0xFFFE))
+	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
 }
 */
 
@@ -180,28 +180,28 @@ func (cpu *CPU) irq() {
 //転送命令
 func (cpu *CPU) lda(opeland uint16) {
 	fmt.Print(cpu.PC, " lda")
-	cpu.A = cpu.mem.Fetch(opeland)
+	cpu.A = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.A>>7)&1 == 1
 	cpu.P.Z = (cpu.A == 0)
 }
 
 func (cpu *CPU) ldx(opeland uint16) {
 	fmt.Print(cpu.PC, " ldx")
-	cpu.X = cpu.mem.Fetch(opeland)
+	cpu.X = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.X>>7)&1 == 1
 	cpu.P.Z = (cpu.X == 0)
 }
 
 func (cpu *CPU) ldy(opeland uint16) {
 	fmt.Print(cpu.PC, " ldy")
-	cpu.Y = cpu.mem.Fetch(opeland)
+	cpu.Y = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.Y>>7)&1 == 1
 	cpu.P.Z = (cpu.Y == 0)
 }
 
 func (cpu *CPU) sta(opeland uint16) {
 	fmt.Print(cpu.PC, " sta")
-	cpu.mem.Store(opeland, cpu.A)
+	cpu.bus.Write(opeland, cpu.A)
 }
 
 func (cpu *CPU) stx(opeland uint16) {
@@ -435,7 +435,7 @@ func (cpu *CPU) brk(opeland uint16) {
 	cpu.push(low)
 	//cpu.push(cpu.P)
 	cpu.P.I = true
-	cpu.storePC(cpu.mem.Fetch(0xFFFF), cpu.mem.Fetch(0xFFFE))
+	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
 }
 
 func (cpu *CPU) nop(opeland uint16) {

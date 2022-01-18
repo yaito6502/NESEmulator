@@ -2,16 +2,17 @@ package nes
 
 import (
 	"fmt"
-	"time"
 	"io/ioutil"
 	"log"
+	"time"
 
+	"github.com/yaito6502/NESEmulator/internal/bus"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
-	"github.com/yaito6502/NESEmulator/internal/mem"
 )
 
 type NES struct {
 	CPU *cpu.CPU
+	BUS *bus.BUS
 	//PPU *ppu
 	//APU *apu
 	//WRAM *wram
@@ -24,7 +25,9 @@ func NewNES() *NES {
 	nes := new(NES)
 	//[TODO]cpu does not have memory
 	//busを通して、メモリマップにアクセスするように要修正
-	nes.CPU = cpu.NewCPU(mem.NewMemory())
+	prom, _ := nes.AttachCartridge("../sample1.nes")
+	nes.BUS = bus.NewBUS(prom)
+	nes.CPU = cpu.NewCPU(nes.BUS)
 	return nes
 }
 
@@ -51,12 +54,6 @@ func (nes *NES) AttachCartridge(filename string) ([]byte, []byte) {
 }
 
 func (nes *NES) Run() {
-	//
-	/*cart := cartridge.NewCartridge("../sample1.nes")
-	for i, b := range cart.ProgramRom {
-		mem.Store(uint16(0x8000+i), b)
-	}*/
-
 	for {
 		fmt.Print(" ", nes.CPU.Run(), "\n")
 		time.Sleep(time.Millisecond * 100)

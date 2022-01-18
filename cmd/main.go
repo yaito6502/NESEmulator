@@ -6,6 +6,5 @@ import (
 
 func main() {
 	nes := nes.NewNES()
-	nes.AttachCartridge("../sample1.nes")
 	nes.Run()
 }
