@@ -1,20 +1,26 @@
 package bus
 
 import (
-	"errors"
 	"log"
+
+	"github.com/yaito6502/NESEmulator/internal/mem"
 )
 
 type BUS struct {
-	//試験的にbyte列のみでCPUを動かす
 	//今後、メモリマップに従って他のパッケージをbusが持っておく
-	other[0x8000]byte
-	prgRom []byte
-	//prgRom2 []byte
+	wram       *mem.RAM
+	wramMirror *mem.RAM
+	ppuReg     [0x0008]byte
+	apuIOPad   [0x0020]byte
+	extRom     *mem.ROM
+	extRam     *mem.RAM
+	prgRom     *mem.ROM
 }
 
-func NewBUS(prgRom []byte) *BUS {
+func NewBUS(wram *mem.RAM, prgRom *mem.ROM) *BUS {
 	bus := new(BUS)
+	bus.wram = wram
+	bus.wramMirror = wram
 	bus.prgRom = prgRom
 	return bus
 }
@@ -34,37 +40,54 @@ Address       | Size   | Use
 0xC000-0xFFFF | 0x4000 | PRG-ROM
 --------------------------------------
 */
-func (bus *BUS) assignAccessMemory(address uint16) (*byte, error) {
-	switch {
-	/*case address <= 0x07FF:
-	case address <= 0x1FFF:
-	case address <= 0x2007:
-	case address <= 0x3FFF:
-	case address <= 0x401F:
-	case address <= 0x5FFF:*/
-	case address <= 0x7FFF:
-		return &bus.other[address], nil
-	case address <= 0xBFFF:
-		return &bus.prgRom[address-0x8000], nil
-	case address <= 0xFFFF:
-		return &bus.prgRom[address-0x8000], nil
-	default:
-		return nil, errors.New("address out of range")
-	}
-}
 
 func (bus *BUS) Read(address uint16) byte {
-	ptr, err := bus.assignAccessMemory(address)
-	if err != nil {
-		log.Fatal()
+	switch {
+	case address <= 0x07FF:
+		return bus.wram.Read(address)
+	case address <= 0x1FFF:
+		return bus.wramMirror.Read(address - 0x0800)
+	case address <= 0x2007:
+		return bus.ppuReg[address-0x2000]
+	case address <= 0x3FFF:
+		return bus.ppuReg[(address-0x2008)%8]
+	case address <= 0x401F:
+		return bus.apuIOPad[address-0x4000]
+	case address <= 0x5FFF:
+		return bus.extRom.Read(address - 0x4020)
+	case address <= 0x7FFF:
+		return bus.extRam.Read(address)
+	case address <= 0xBFFF:
+		return bus.prgRom.Read(address - 0x8000)
+	case address <= 0xFFFF:
+		return bus.prgRom.Read(address - 0x8000)
+	default:
+		log.Fatalf("address out of range %v", address)
+		return 0
 	}
-	return *ptr
 }
 
 func (bus *BUS) Write(address uint16, data uint8) {
-	ptr, err := bus.assignAccessMemory(address)
-	if err != nil {
-		log.Fatal()
+	switch {
+	case address <= 0x07FF:
+		bus.wram.Write(address, data)
+	case address <= 0x1FFF:
+		bus.wramMirror.Write(address-0x0800, data)
+	case address <= 0x2007:
+		bus.ppuReg[address-0x2000] = data
+	case address <= 0x3FFF:
+		bus.ppuReg[(address-0x2008)%8] = data
+	case address <= 0x401F:
+		bus.apuIOPad[address-0x4000] = data
+	case address <= 0x5FFF:
+
+	case address <= 0x7FFF:
+		bus.extRam.Write(address, data)
+	case address <= 0xBFFF:
+
+	case address <= 0xFFFF:
+
+	default:
+		log.Fatalf("address out of range %v", address)
 	}
-	*ptr = data
 }

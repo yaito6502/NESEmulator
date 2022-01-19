@@ -8,6 +8,7 @@ import (
 
 	"github.com/yaito6502/NESEmulator/internal/bus"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
+	"github.com/yaito6502/NESEmulator/internal/mem"
 )
 
 type NES struct {
@@ -15,7 +16,7 @@ type NES struct {
 	BUS *bus.BUS
 	//PPU *ppu
 	//APU *apu
-	//WRAM *wram
+	WRAM mem.RAM
 	//VRAM *vram
 	//DMA *dma
 	//PAD *pad
@@ -23,16 +24,14 @@ type NES struct {
 
 func NewNES() *NES {
 	nes := new(NES)
-	//[TODO]cpu does not have memory
-	//busを通して、メモリマップにアクセスするように要修正
 	prom, _ := nes.AttachCartridge("../sample1.nes")
-	nes.BUS = bus.NewBUS(prom)
+	nes.WRAM = mem.NewRAM(0x0800)
+	nes.BUS = bus.NewBUS(&nes.WRAM, &prom)
 	nes.CPU = cpu.NewCPU(nes.BUS)
 	return nes
 }
 
-//promとcromをwram領域にコピーする必要がある
-func (nes *NES) AttachCartridge(filename string) ([]byte, []byte) {
+func (nes *NES) AttachCartridge(filename string) (mem.ROM, mem.ROM) {
 	contents, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal()
@@ -50,7 +49,7 @@ func (nes *NES) AttachCartridge(filename string) ([]byte, []byte) {
 
 	program_rom := contents[NESHEADERSIZE : character_romstart-1]
 	character_rom := contents[character_romstart : character_romend-1]
-	return program_rom, character_rom
+	return mem.NewROM(program_rom), mem.NewROM(character_rom)
 }
 
 func (nes *NES) Run() {
