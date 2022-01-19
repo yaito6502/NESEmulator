@@ -7,7 +7,6 @@ import (
 )
 
 type BUS struct {
-	//今後、メモリマップに従って他のパッケージをbusが持っておく
 	wram       *mem.RAM
 	wramMirror *mem.RAM
 	ppuReg     [0x0008]byte

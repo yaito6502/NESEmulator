@@ -9,25 +9,31 @@ import (
 	"github.com/yaito6502/NESEmulator/internal/bus"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
 	"github.com/yaito6502/NESEmulator/internal/mem"
+	"github.com/yaito6502/NESEmulator/internal/ppu"
 )
 
 type NES struct {
 	CPU *cpu.CPU
 	BUS *bus.BUS
-	//PPU *ppu
+	PPUBUS *bus.PPUBUS
+	PPU *ppu.PPU
 	//APU *apu
 	WRAM mem.RAM
-	//VRAM *vram
+	VRAM mem.RAM
+
 	//DMA *dma
 	//PAD *pad
 }
 
 func NewNES() *NES {
 	nes := new(NES)
-	prom, _ := nes.AttachCartridge("../sample1.nes")
+	prom, crom := nes.AttachCartridge("../sample1.nes")
 	nes.WRAM = mem.NewRAM(0x0800)
+	nes.VRAM = mem.NewRAM(0x0800)
 	nes.BUS = bus.NewBUS(&nes.WRAM, &prom)
+	nes.PPUBUS = bus.NewPPUBUS(&crom, &nes.VRAM)
 	nes.CPU = cpu.NewCPU(nes.BUS)
+	nes.PPU = ppu.NewPPU(nes.PPUBUS)
 	return nes
 }
 
