@@ -2,8 +2,8 @@ package cpu
 
 import "fmt"
 
-func getCyclesTable() []int {
-	return []int{
+func getCyclesTable() []uint8 {
+	return []uint8{
 		/*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
 		/*0x10*/ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7,
 		/*0x20*/ 6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,

@@ -20,7 +20,7 @@ type Flags struct {
 type CPU struct {
 	iTable []func(uint16)
 	aTable []func() uint16
-	cycles []int
+	cycles []uint8
 	bus    *bus.BUS
 	A      uint8
 	X      uint8
@@ -86,7 +86,7 @@ func (cpu *CPU) fetchPC() (high byte, low byte) {
 	return byte(cpu.PC & 0xFF00), byte(cpu.PC & 0x00FF)
 }
 
-func (cpu *CPU) Run() int {
+func (cpu *CPU) Run() uint8 {
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
 	mode := cpu.aTable[opecode]
