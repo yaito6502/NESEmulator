@@ -6,38 +6,38 @@ import (
 	"log"
 	"time"
 
-	"github.com/yaito6502/NESEmulator/internal/bus"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
+	"github.com/yaito6502/NESEmulator/internal/cpubus"
 	"github.com/yaito6502/NESEmulator/internal/mem"
 	"github.com/yaito6502/NESEmulator/internal/ppu"
+	"github.com/yaito6502/NESEmulator/internal/ppubus"
 )
 
 type NES struct {
-	CPU *cpu.CPU
-	BUS *bus.BUS
-	PPUBUS *bus.PPUBUS
-	PPU *ppu.PPU
+	CPU    *cpu.CPU
+	PPU    *ppu.PPU
+	CPUBUS *cpubus.CPUBUS
+	PPUBUS *ppubus.PPUBUS
+	WRAM   mem.RAM
+	VRAM   mem.RAM
 	//APU *apu
-	WRAM mem.RAM
-	VRAM mem.RAM
-
 	//DMA *dma
 	//PAD *pad
 }
 
 func NewNES() *NES {
 	nes := new(NES)
-	prom, crom := nes.AttachCartridge("../sample1.nes")
+	prom, crom := nes.attachCartridge("../sample1.nes")
 	nes.WRAM = mem.NewRAM(0x0800)
 	nes.VRAM = mem.NewRAM(0x0800)
-	nes.BUS = bus.NewBUS(&nes.WRAM, &prom)
-	nes.PPUBUS = bus.NewPPUBUS(&crom, &nes.VRAM)
-	nes.CPU = cpu.NewCPU(nes.BUS)
+	nes.PPUBUS = ppubus.NewPPUBUS(&crom, &nes.VRAM)
 	nes.PPU = ppu.NewPPU(nes.PPUBUS)
+	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &prom)
+	nes.CPU = cpu.NewCPU(nes.CPUBUS)
 	return nes
 }
 
-func (nes *NES) AttachCartridge(filename string) (mem.ROM, mem.ROM) {
+func (nes *NES) attachCartridge(filename string) (mem.ROM, mem.ROM) {
 	contents, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal()

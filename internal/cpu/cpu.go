@@ -3,7 +3,7 @@ package cpu
 import (
 	"log"
 
-	"github.com/yaito6502/NESEmulator/internal/bus"
+	"github.com/yaito6502/NESEmulator/internal/cpubus"
 )
 
 type Flags struct {
@@ -21,7 +21,7 @@ type CPU struct {
 	iTable []func(uint16)
 	aTable []func() uint16
 	cycles []uint8
-	bus    *bus.BUS
+	bus    *cpubus.CPUBUS
 	A      uint8
 	X      uint8
 	Y      uint8
@@ -43,7 +43,7 @@ func NewFlags() *Flags {
 	return flags
 }
 
-func NewCPU(bus *bus.BUS) *CPU {
+func NewCPU(bus *cpubus.CPUBUS) *CPU {
 	cpu := new(CPU)
 	cpu.iTable = cpu.getInstructionTable()
 	cpu.aTable = cpu.getAddressingModeTable()
@@ -64,11 +64,13 @@ func (cpu *CPU) push(data uint8) {
 	cpu.S--
 }
 
+/*
 func (cpu *CPU) pop() uint8 {
 	cpu.S++
 	address := 0x0100 + uint16(cpu.S)
 	return (cpu.bus.Read(address))
 }
+*/
 
 func (cpu *CPU) fetch() byte {
 	data := cpu.bus.Read(cpu.PC)

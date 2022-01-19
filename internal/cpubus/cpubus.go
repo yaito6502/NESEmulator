@@ -1,25 +1,27 @@
-package bus
+package cpubus
 
 import (
 	"log"
 
 	"github.com/yaito6502/NESEmulator/internal/mem"
+	"github.com/yaito6502/NESEmulator/internal/ppu"
 )
 
-type BUS struct {
+type CPUBUS struct {
 	wram       *mem.RAM
 	wramMirror *mem.RAM
-	ppuReg     [0x0008]byte
+	ppu        *ppu.PPU
 	apuIOPad   [0x0020]byte
 	extRom     *mem.ROM
 	extRam     *mem.RAM
 	prgRom     *mem.ROM
 }
 
-func NewBUS(wram *mem.RAM, prgRom *mem.ROM) *BUS {
-	bus := new(BUS)
+func NewCPUBUS(wram *mem.RAM, ppu *ppu.PPU, prgRom *mem.ROM) *CPUBUS {
+	bus := new(CPUBUS)
 	bus.wram = wram
 	bus.wramMirror = wram
+	bus.ppu = ppu
 	bus.prgRom = prgRom
 	return bus
 }
@@ -40,16 +42,16 @@ Address       | Size   | Use
 --------------------------------------
 */
 
-func (bus *BUS) Read(address uint16) byte {
+func (bus *CPUBUS) Read(address uint16) byte {
 	switch {
 	case address <= 0x07FF:
 		return bus.wram.Read(address)
 	case address <= 0x1FFF:
 		return bus.wramMirror.Read(address - 0x0800)
 	case address <= 0x2007:
-		return bus.ppuReg[address-0x2000]
+		return bus.ppu.ReadRegister(address)
 	case address <= 0x3FFF:
-		return bus.ppuReg[(address-0x2008)%8]
+		return bus.ppu.ReadRegister((address-0x2000)%8 + 0x2000)
 	case address <= 0x401F:
 		return bus.apuIOPad[address-0x4000]
 	case address <= 0x5FFF:
@@ -66,16 +68,16 @@ func (bus *BUS) Read(address uint16) byte {
 	}
 }
 
-func (bus *BUS) Write(address uint16, data uint8) {
+func (bus *CPUBUS) Write(address uint16, data uint8) {
 	switch {
 	case address <= 0x07FF:
 		bus.wram.Write(address, data)
 	case address <= 0x1FFF:
 		bus.wramMirror.Write(address-0x0800, data)
 	case address <= 0x2007:
-		bus.ppuReg[address-0x2000] = data
+		bus.ppu.WriteRegister(address, data)
 	case address <= 0x3FFF:
-		bus.ppuReg[(address-0x2008)%8] = data
+		bus.ppu.WriteRegister((address-0x2008)%8+0x2000, data)
 	case address <= 0x401F:
 		bus.apuIOPad[address-0x4000] = data
 	case address <= 0x5FFF:
