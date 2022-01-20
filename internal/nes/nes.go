@@ -14,6 +14,10 @@ import (
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 )
 
+const WIDTH = 256
+const HEIGHT = 240
+const SCALE = 4
+
 type NES struct {
 	CPU    *cpu.CPU
 	PPU    *ppu.PPU
@@ -62,7 +66,7 @@ func (nes *NES) attachCartridge(filename string) (mem.ROM, mem.ROM) {
 }
 
 func (nes *NES) Run() {
-	ebiten.SetWindowSize(256, 240)
+	ebiten.SetWindowSize(WIDTH*SCALE, HEIGHT*SCALE)
 	ebiten.SetWindowTitle("GO NES")
 	if err := ebiten.RunGame(nes); err != nil {
 		log.Fatal(err)
@@ -79,8 +83,10 @@ func (nes *NES) Update() error {
 }
 
 func (nes *NES) Draw(screen *ebiten.Image) {
-	//ebitenutil.DebugPrint(screen, "Hello NES!")
-	screen.DrawImage(nes.image, nil)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(SCALE, SCALE)
+	screen.DrawImage(nes.image, op)
+	//for debug
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS:%0.2f", ebiten.CurrentFPS()))
 }
 
