@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
 	"github.com/yaito6502/NESEmulator/internal/mem"
@@ -23,13 +24,14 @@ type NES struct {
 	//APU *apu
 	//DMA *dma
 	//PAD *pad
+	image *ebiten.Image
 }
 
 func NewNES() *NES {
 	nes := new(NES)
 	prom, crom := nes.attachCartridge("../sample1.nes")
 	nes.WRAM = mem.NewRAM(0x0800)
-	nes.VRAM = mem.NewRAM(0x0800)
+	nes.VRAM = mem.NewRAM(0x2000)
 	nes.PPUBUS = ppubus.NewPPUBUS(&crom, &nes.VRAM)
 	nes.PPU = ppu.NewPPU(nes.PPUBUS)
 	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &prom)
@@ -55,12 +57,34 @@ func (nes *NES) attachCartridge(filename string) (mem.ROM, mem.ROM) {
 
 	program_rom := contents[NESHEADERSIZE : character_romstart-1]
 	character_rom := contents[character_romstart : character_romend-1]
+	fmt.Println(len(program_rom), len(character_rom))
 	return mem.NewROM(program_rom), mem.NewROM(character_rom)
 }
 
 func (nes *NES) Run() {
-	for {
-		fmt.Print(" ", nes.CPU.Run(), "\n")
-		time.Sleep(time.Millisecond * 100)
+	ebiten.SetWindowSize(256, 240)
+	ebiten.SetWindowTitle("GO NES")
+	if err := ebiten.RunGame(nes); err != nil {
+		log.Fatal(err)
 	}
+}
+
+func (nes *NES) Update() error {
+	nes.image = nil
+	for nes.image == nil {
+		cycles := nes.CPU.Run()
+		nes.image = nes.PPU.Run(uint16(cycles) * 3)
+	}
+	return nil
+}
+
+func (nes *NES) Draw(screen *ebiten.Image) {
+	ebitenutil.DebugPrint(screen, "Hello NES!")
+	if nes.image != nil {
+		screen.DrawImage(nes.image, nil)
+	}
+}
+
+func (nes *NES) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return outsideWidth, outsideHeight
 }

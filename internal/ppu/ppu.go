@@ -15,7 +15,7 @@ type PPURegister struct {
 	oamAddr   byte
 	oamData   byte
 	ppuScroll byte
-	ppuAddr   byte
+	ppuAddr   uint16
 	ppuData   byte
 }
 
@@ -30,6 +30,8 @@ type PPU struct {
 func NewPPU(bus *ppubus.PPUBUS) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
+	ppu.image = ebiten.NewImage(256, 240)
+	ppu.image.Fill(color.Black)
 	return ppu
 }
 
@@ -40,7 +42,7 @@ func (ppu *PPU) ReadRegister(address uint16) uint8 {
 	case address == 0x2004:
 		return ppu.reg.oamData
 	case address == 0x2007:
-		return ppu.reg.ppuData
+		return ppu.bus.Read(ppu.reg.ppuAddr)
 	default:
 		log.Fatalf("cannnot read register on address %v", address)
 		return 0
@@ -60,12 +62,17 @@ func (ppu *PPU) WriteRegister(address uint16, data uint8) {
 	case address == 0x2005:
 		ppu.reg.ppuScroll = data
 	case address == 0x2006:
-		ppu.reg.ppuAddr = data
+		ppu.WritePPUADDR(data)
 	case address == 0x2007:
-		ppu.reg.ppuData = data
+		ppu.bus.Write(ppu.reg.ppuAddr, data)
+		ppu.reg.ppuAddr++
 	default:
 		log.Fatalf("cannnot write register on address %v", address)
 	}
+}
+
+func (ppu *PPU) WritePPUADDR(data uint8) {
+	ppu.reg.ppuAddr = ppu.reg.ppuAddr<<8 + uint16(data)
 }
 
 func getColorTable() []color.RGBA {
@@ -110,9 +117,9 @@ func (ppu *PPU) getColor(tile *Tile, x uint16, y uint16) color.Color {
 
 //Tile -> Pixel
 func (ppu *PPU) fillTileInImage(tile *Tile) {
-	for y := tile.y * 8; y < 8; y++ {
-		for x := tile.x * 8; x < 8; x++ {
-			ppu.image.Set(int(x), int(y), ppu.getColor(tile, x, y))
+	for y := uint16(0); y < 8; y++ {
+		for x := uint16(0); x < 8; x++ {
+			ppu.image.Set(int(tile.x*8+x), int(tile.y*8+y), ppu.getColor(tile, x, y))
 		}
 	}
 }
@@ -125,17 +132,22 @@ func (ppu *PPU) getSpriteID(tileX, tileY uint16) uint16 {
 func (ppu *PPU) getPaletteID(tileX, tileY uint16) uint16 {
 	attribute := ppu.bus.Read(0x23C0 + tileY/4*8 + tileX/4)
 	shift := (tileX%4)/2 + (tileY%4)/2*2
-	paletteID := attribute & (0x03 << (shift*2 - 6))
+	paletteID := attribute & (0x03 << (6 - shift*2))
 	return uint16(paletteID)
 }
 
 func (ppu *PPU) NewSprite(spriteID uint16) *Sprite {
 	sprite := new(Sprite)
 	for y := uint16(0); y < 8; y++ {
-		high := ppu.bus.Read(0x0010*spriteID + y)
-		low := ppu.bus.Read(0x0010*spriteID + y + 8)
+		low := ppu.bus.Read(0x0010*spriteID + y)
+		high := ppu.bus.Read(0x0010*spriteID + y + 8)
 		for x := 0; x < 8; x++ {
-			sprite[y][x] = (high & (1 << x)) + (low & (1 << x))
+			if (high & 1 << x) != 0 {
+				sprite[y][x] += 2
+			}
+			if (low & 1 << x) != 0 {
+				sprite[y][x] += 1
+			}
 		}
 	}
 	return sprite
@@ -158,11 +170,12 @@ func (ppu *PPU) fillLineInImage() {
 		paletteID := ppu.getPaletteID(tile.x, tile.y)
 		tile.sprite = ppu.NewSprite(spriteID)
 		tile.palette = ppu.NewPalette(paletteID)
+		//fmt.Println(tile.x, tile.y, spriteID, paletteID)
 		ppu.fillTileInImage(tile)
 	}
 }
 
-func (ppu *PPU) Run(cycles uint16) {
+func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	ppu.clock += cycles
 
 	//ppu.clock[0 ~ 255] -> Draw Display
@@ -170,7 +183,6 @@ func (ppu *PPU) Run(cycles uint16) {
 	for ; ppu.clock >= 341; ppu.clock -= 341 {
 		ppu.line++
 	}
-
 	//ppu.lines[0 ~ 239] -> Draw Display
 	//ppu.lines[240 ~ 261] -> Vblank
 	if ppu.line%8 == 0 && ppu.line < 240 {
@@ -178,5 +190,8 @@ func (ppu *PPU) Run(cycles uint16) {
 	}
 	if ppu.line >= 262 {
 		ppu.line = 0
+		ppu.fillLineInImage()
+		return ppu.image
 	}
+	return nil
 }

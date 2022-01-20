@@ -1,7 +1,5 @@
 package cpu
 
-import "fmt"
-
 func getCyclesTable() []uint8 {
 	return []uint8{
 		/*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
@@ -179,28 +177,28 @@ func (cpu *CPU) irq() {
 
 //転送命令
 func (cpu *CPU) lda(opeland uint16) {
-	fmt.Print(cpu.PC, " lda")
+	//fmt.Print(cpu.PC, " lda")
 	cpu.A = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.A>>7)&1 == 1
 	cpu.P.Z = (cpu.A == 0)
 }
 
 func (cpu *CPU) ldx(opeland uint16) {
-	fmt.Print(cpu.PC, " ldx")
+	//fmt.Print(cpu.PC, " ldx")
 	cpu.X = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.X>>7)&1 == 1
 	cpu.P.Z = (cpu.X == 0)
 }
 
 func (cpu *CPU) ldy(opeland uint16) {
-	fmt.Print(cpu.PC, " ldy")
+	//fmt.Print(cpu.PC, " ldy")
 	cpu.Y = cpu.bus.Read(opeland)
 	cpu.P.N = (cpu.Y>>7)&1 == 1
 	cpu.P.Z = (cpu.Y == 0)
 }
 
 func (cpu *CPU) sta(opeland uint16) {
-	fmt.Print(cpu.PC, " sta")
+	//fmt.Print(cpu.PC, " sta")
 	cpu.bus.Write(opeland, cpu.A)
 }
 
@@ -229,7 +227,7 @@ func (cpu *CPU) txa(opeland uint16) {
 }
 
 func (cpu *CPU) txs(opeland uint16) {
-	fmt.Print(cpu.PC, " txs")
+	//fmt.Print(cpu.PC, " txs")
 	cpu.S = cpu.X
 }
 
@@ -275,7 +273,7 @@ func (cpu *CPU) dex(opeland uint16) {
 }
 
 func (cpu *CPU) dey(opeland uint16) {
-	fmt.Print(cpu.PC, " dey")
+	//fmt.Print(cpu.PC, " dey")
 	cpu.Y--
 	cpu.P.N = (cpu.Y>>7)&1 == 1
 	cpu.P.Z = (cpu.Y == 0)
@@ -290,7 +288,7 @@ func (cpu *CPU) inc(opeland uint16) {
 }
 
 func (cpu *CPU) inx(opeland uint16) {
-	fmt.Print(cpu.PC, " inx")
+	//fmt.Print(cpu.PC, " inx")
 	cpu.X++
 	cpu.P.N = (cpu.X>>7)&1 == 1
 	cpu.P.Z = (cpu.X == 0)
@@ -339,7 +337,7 @@ func (cpu *CPU) plp(opeland uint16) {
 
 //ジャンプ命令
 func (cpu *CPU) jmp(opeland uint16) {
-	fmt.Print(cpu.PC, " jmp")
+	//fmt.Print(cpu.PC, " jmp")
 	cpu.PC = opeland
 }
 
@@ -373,11 +371,9 @@ func (cpu *CPU) bmi(opeland uint16) {
 }
 
 func (cpu *CPU) bne(opeland uint16) {
-	fmt.Print(cpu.PC, " bne")
+	//fmt.Print(cpu.PC, " bne")
 	if !cpu.P.Z {
 		cpu.PC = opeland
-	} else {
-		cpu.PC++
 	}
 }
 
@@ -418,13 +414,13 @@ func (cpu *CPU) sed(opeland uint16) {
 }
 
 func (cpu *CPU) sei(opeland uint16) {
-	fmt.Print(cpu.PC, " sei")
+	//fmt.Print(cpu.PC, " sei")
 	cpu.P.I = true
 }
 
 //その他の命令
 func (cpu *CPU) brk(opeland uint16) {
-	fmt.Print(cpu.PC, " brk")
+	//fmt.Print(cpu.PC, " brk")
 	if cpu.P.I {
 		return
 	}
