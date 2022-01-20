@@ -31,7 +31,6 @@ func NewPPU(bus *ppubus.PPUBUS) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
 	ppu.image = ebiten.NewImage(256, 240)
-	ppu.image.Fill(color.Black)
 	return ppu
 }
 
@@ -142,10 +141,10 @@ func (ppu *PPU) NewSprite(spriteID uint16) *Sprite {
 		low := ppu.bus.Read(0x0010*spriteID + y)
 		high := ppu.bus.Read(0x0010*spriteID + y + 8)
 		for x := 0; x < 8; x++ {
-			if (high & 1 << x) != 0 {
+			if (high & (1 << (8 - x))) != 0 {
 				sprite[y][x] += 2
 			}
-			if (low & 1 << x) != 0 {
+			if (low & (1 << (8 - x))) != 0 {
 				sprite[y][x] += 1
 			}
 		}
@@ -164,13 +163,11 @@ func (ppu *PPU) NewPalette(paletteID uint16) *Palette {
 func (ppu *PPU) fillLineInImage() {
 	tile := new(Tile)
 	tile.y = ppu.line / 8
-	for tileX := uint16(0); tileX < 32; tileX++ {
-		tile.x = tileX
+	for tile.x = 0; tile.x < 32; tile.x++ {
 		spriteID := ppu.getSpriteID(tile.x, tile.y)
 		paletteID := ppu.getPaletteID(tile.x, tile.y)
 		tile.sprite = ppu.NewSprite(spriteID)
 		tile.palette = ppu.NewPalette(paletteID)
-		//fmt.Println(tile.x, tile.y, spriteID, paletteID)
 		ppu.fillTileInImage(tile)
 	}
 }
@@ -190,7 +187,9 @@ func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	}
 	if ppu.line >= 262 {
 		ppu.line = 0
-		ppu.fillLineInImage()
+		ppu.image.Clear()
+	}
+	if ppu.line >= 240 {
 		return ppu.image
 	}
 	return nil

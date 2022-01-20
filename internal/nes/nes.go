@@ -79,10 +79,9 @@ func (nes *NES) Update() error {
 }
 
 func (nes *NES) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Hello NES!")
-	if nes.image != nil {
-		screen.DrawImage(nes.image, nil)
-	}
+	//ebitenutil.DebugPrint(screen, "Hello NES!")
+	screen.DrawImage(nes.image, nil)
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS:%0.2f", ebiten.CurrentFPS()))
 }
 
 func (nes *NES) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
