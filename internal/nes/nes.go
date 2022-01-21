@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -43,25 +44,25 @@ func NewNES() *NES {
 	return nes
 }
 
+//[TODO] Headerの情報を16バイト全部使用して、各種設定を行う
 func (nes *NES) attachCartridge(filename string) (mem.ROM, mem.ROM) {
 	contents, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatal()
+		log.Fatal("Cannot read file")
 	}
-
-	//check nes format
-	if string(contents[0:3]) != "NES" {
-		log.Fatal()
+	header := contents[0:16]
+	//check file format
+	if filepath.Ext(filename) != ".nes" || string(header[0:3]) != "NES" {
+		log.Fatal("This file is NOT .nes format")
 	}
 
 	const NESHEADERSIZE int = 0x0010
-
-	character_romstart := NESHEADERSIZE + 0x4000*int(contents[4])
-	character_romend := character_romstart + 0x2000*int(contents[5])
+	character_romstart := NESHEADERSIZE + 0x4000*int(header[4])
+	character_romend := character_romstart + 0x2000*int(header[5])
 
 	program_rom := contents[NESHEADERSIZE : character_romstart-1]
 	character_rom := contents[character_romstart : character_romend-1]
-	fmt.Println(len(program_rom), len(character_rom))
+	//fmt.Println(len(program_rom), len(character_rom))
 	return mem.NewROM(program_rom), mem.NewROM(character_rom)
 }
 
