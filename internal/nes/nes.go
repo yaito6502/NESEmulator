@@ -2,12 +2,11 @@ package nes
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/yaito6502/NESEmulator/internal/cartridge"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
 	"github.com/yaito6502/NESEmulator/internal/mem"
@@ -32,38 +31,15 @@ type NES struct {
 	image *ebiten.Image
 }
 
-func NewNES() *NES {
+func NewNES(cart *cartridge.Cartridge) *NES {
 	nes := new(NES)
-	prom, crom := nes.attachCartridge("../sample1.nes")
 	nes.WRAM = mem.NewRAM(0x0800)
 	nes.VRAM = mem.NewRAM(0x2000)
-	nes.PPUBUS = ppubus.NewPPUBUS(&crom, &nes.VRAM)
+	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &nes.VRAM)
 	nes.PPU = ppu.NewPPU(nes.PPUBUS)
-	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &prom)
+	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &cart.ProgramRom)
 	nes.CPU = cpu.NewCPU(nes.CPUBUS)
 	return nes
-}
-
-//[TODO] Headerの情報を16バイト全部使用して、各種設定を行う
-func (nes *NES) attachCartridge(filename string) (mem.ROM, mem.ROM) {
-	contents, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Fatal("Cannot read file")
-	}
-	header := contents[0:16]
-	//check file format
-	if filepath.Ext(filename) != ".nes" || string(header[0:3]) != "NES" {
-		log.Fatal("This file is NOT .nes format")
-	}
-
-	const NESHEADERSIZE int = 0x0010
-	character_romstart := NESHEADERSIZE + 0x4000*int(header[4])
-	character_romend := character_romstart + 0x2000*int(header[5])
-
-	program_rom := contents[NESHEADERSIZE : character_romstart-1]
-	character_rom := contents[character_romstart : character_romend-1]
-	//fmt.Println(len(program_rom), len(character_rom))
-	return mem.NewROM(program_rom), mem.NewROM(character_rom)
 }
 
 func (nes *NES) Run() {
