@@ -1,4 +1,4 @@
-# NESEmulator make in Golang
+# NESEmulator made in Golang
 
 ## Hello World
 
