@@ -35,6 +35,6 @@ func (cart *Cartridge) extractROMData(nespath string) {
 	character_romstart := NESHEADERSIZE + 0x4000*int(header[4])
 	character_romend := character_romstart + 0x2000*int(header[5])
 
-	cart.ProgramRom = mem.NewROM(contents[NESHEADERSIZE : character_romstart-1])
-	cart.CharacterRom = mem.NewROM(contents[character_romstart : character_romend-1])
+	cart.ProgramRom = mem.NewROM(contents[NESHEADERSIZE:character_romstart])
+	cart.CharacterRom = mem.NewROM(contents[character_romstart:character_romend])
 }

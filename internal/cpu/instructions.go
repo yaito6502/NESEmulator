@@ -42,59 +42,72 @@ func (cpu *CPU) getInstructionTable() []func(uint16) {
 	}
 }
 
-/*
 func (cpu *CPU) reset() {
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFD), cpu.bus.Read(0xFFFC))
+	cpu.sei(0)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFD))<<8 + uint16(cpu.bus.Read(0xFFFC))
 }
 
 func (cpu *CPU) nmi() {
 	cpu.P.B = false
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFB), cpu.bus.Read(0xFFFA))
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0)
+	cpu.sei(0)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFB))<<8 + uint16(cpu.bus.Read(0xFFFA))
 }
 
 func (cpu *CPU) irq() {
 	if cpu.P.I {
 		return
 	}
-	cpu.P.B = true
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
+	cpu.P.B = false
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0)
+	cpu.sei(0)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFF))<<8 + uint16(cpu.bus.Read(0xFFFE))
 }
-*/
 
 //hello worldに最低限必要な命令を優先して実装する
 
+const (
+	C = iota
+	Z
+	I
+	D
+	B
+	R
+	V
+	N
+)
+
+/* flagをビット演算で処理する場合の実装
 func (cpu *CPU) setFlag(bit, exp uint8) {
-	cpu.P = (cpu.P & (0b11111111 ^ (1 << bit))) | exp
+	cpu.P = (cpu.P & (0xFF ^ (1 << bit))) | exp
 }
+
+func (cpu *CPU) getFlag(bit uint8) uint8 {
+	return cpu.P & (1 << bit)
+}
+*/
 
 //転送命令
 func (cpu *CPU) lda(opeland uint16) {
 	cpu.A = cpu.bus.Read(opeland)
-	cpu.setFlag(7, cpu.A&(1<<7))
-	cpu.setFlag(1, 1>>cpu.A<<1)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 func (cpu *CPU) ldx(opeland uint16) {
 	cpu.X = cpu.bus.Read(opeland)
-	cpu.setFlag(7, cpu.X&(1<<7))
-	cpu.setFlag(1, 1>>cpu.X<<1)
+	cpu.P.N = cpu.X&0x80 == 1
+	cpu.P.Z = cpu.X == 0
 }
 
 func (cpu *CPU) ldy(opeland uint16) {
 	cpu.Y = cpu.bus.Read(opeland)
-	cpu.setFlag(7, cpu.Y&(1<<7))
-	cpu.setFlag(1, 1>>cpu.Y<<1)
+	cpu.P.N = cpu.Y&0x80 == 1
+	cpu.P.Z = cpu.Y == 0
 }
 
 func (cpu *CPU) sta(opeland uint16) {
@@ -111,136 +124,232 @@ func (cpu *CPU) sty(opeland uint16) {
 
 func (cpu *CPU) tax(opeland uint16) {
 	cpu.X = cpu.A
-	cpu.setFlag(7, cpu.X&(1<<7))
-	cpu.setFlag(1, 1>>cpu.X<<1)
+	cpu.P.N = cpu.X&0x80 == 1
+	cpu.P.Z = cpu.X == 0
 }
 
 func (cpu *CPU) tay(opeland uint16) {
 	cpu.Y = cpu.A
-	cpu.setFlag(7, cpu.Y&(1<<7))
-	cpu.setFlag(1, 1>>cpu.Y<<1)
+	cpu.P.N = cpu.Y&0x80 == 1
+	cpu.P.Z = cpu.Y == 0
 }
 
 func (cpu *CPU) tsx(opeland uint16) {
 	cpu.X = cpu.S
-	cpu.setFlag(7, cpu.X&(1<<7))
-	cpu.setFlag(1, 1>>cpu.X<<1)
+	cpu.P.N = cpu.X&0x80 == 1
+	cpu.P.Z = cpu.X == 0
 }
 
 func (cpu *CPU) txa(opeland uint16) {
 	cpu.A = cpu.X
-	cpu.setFlag(7, cpu.A&(1<<7))
-	cpu.setFlag(1, 1>>cpu.A<<1)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 func (cpu *CPU) txs(opeland uint16) {
 	cpu.S = cpu.X
-	cpu.setFlag(7, cpu.S&(1<<7))
-	cpu.setFlag(1, 1>>cpu.S<<1)
+	cpu.P.N = cpu.S&0x80 == 1
+	cpu.P.Z = cpu.S == 0
 }
 
 func (cpu *CPU) tya(opeland uint16) {
 	cpu.A = cpu.Y
-	cpu.setFlag(7, cpu.A&(1<<7))
-	cpu.setFlag(1, 1>>cpu.A<<1)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 //算術命令
 func (cpu *CPU) adc(opeland uint16) {
+	adc := uint16(cpu.A) + opeland
+	if cpu.P.C {
+		adc++
+	}
+	cpu.P.N = adc&0x80 == 1
+	cpu.P.V = cpu.A < 0x80 && adc >= 0x80
+	cpu.P.Z = adc == 0
+	cpu.P.C = adc > 0xFF
+	cpu.A = uint8(adc)
 }
 
 func (cpu *CPU) and(opeland uint16) {
-
+	cpu.A &= uint8(opeland)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
+//opecodeによってはメモリを左シフトする必要があるかも
 func (cpu *CPU) asl(opeland uint16) {
-
+	asl := uint16(cpu.A) << 1
+	cpu.P.N = asl&0x80 == 1
+	cpu.P.Z = asl == 0
+	cpu.P.C = asl > 0xFF
+	cpu.A = uint8(asl)
 }
 
 func (cpu *CPU) bit(opeland uint16) {
-
+	cpu.P.N = opeland&0x80 == 1
+	cpu.P.V = opeland&0x40 == 1
+	cpu.P.Z = uint16(cpu.A)&opeland == 0
 }
 
 func (cpu *CPU) cmp(opeland uint16) {
-
+	cmp := int16(uint16(cpu.A) - opeland)
+	cpu.P.N = cmp&0x80 == 1
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
 func (cpu *CPU) cpx(opeland uint16) {
-
+	cmp := int16(uint16(cpu.X) - opeland)
+	cpu.P.N = cmp&0x80 == 1
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
 func (cpu *CPU) cpy(opeland uint16) {
-
+	cmp := int16(uint16(cpu.Y) - opeland)
+	cpu.P.N = cmp&0x80 == 1
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
 func (cpu *CPU) dec(opeland uint16) {
-
+	opeland--
+	cpu.P.N = opeland&0x80 == 1
+	cpu.P.Z = opeland == 0
 }
 
 func (cpu *CPU) dex(opeland uint16) {
-
+	cpu.X--
+	cpu.P.N = cpu.X&0x80 == 1
+	cpu.P.Z = cpu.X == 0
 }
 
 func (cpu *CPU) dey(opeland uint16) {
-	//fmt.Print(cpu.PC, " dey")
 	cpu.Y--
-	cpu.P = (cpu.P & 0b01111111) | (cpu.Y & (1 << 7))
-	cpu.P = (cpu.P & 0b11111101) | (1 >> cpu.Y << 1)
+	cpu.P.N = cpu.Y&0x80 == 1
+	cpu.P.Z = cpu.Y == 0
 }
 
 func (cpu *CPU) eor(opeland uint16) {
-
+	cpu.A ^= uint8(opeland)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 func (cpu *CPU) inc(opeland uint16) {
-
+	opeland++
+	cpu.P.N = opeland&0x80 == 1
+	cpu.P.Z = opeland == 0
 }
 
 func (cpu *CPU) inx(opeland uint16) {
 	cpu.X++
-	cpu.P = (cpu.P & 0b01111111) | (cpu.X & (1 << 7))
-	cpu.P = (cpu.P & 0b11111101) | (1 >> cpu.X << 1)
+	cpu.P.N = cpu.X&0x80 == 1
+	cpu.P.Z = cpu.X == 0
 }
 
 func (cpu *CPU) iny(opeland uint16) {
-
+	cpu.Y++
+	cpu.P.N = cpu.Y&0x80 == 1
+	cpu.P.Z = cpu.Y == 0
 }
 
 func (cpu *CPU) lsr(opeland uint16) {
-
+	lsr := uint16(cpu.A) >> 1
+	cpu.P.N = lsr&0x80 == 1
+	cpu.P.Z = lsr == 0
+	cpu.P.C = lsr > 0xFF
+	cpu.A = uint8(lsr)
 }
 
 func (cpu *CPU) ora(opeland uint16) {
-
+	cpu.A |= uint8(opeland)
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 func (cpu *CPU) rol(opeland uint16) {
-
+	cpu.A <<= 1
+	if cpu.P.C {
+		cpu.A++
+	}
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
+	cpu.P.C = cpu.A&0x80 != 0
 }
 
 func (cpu *CPU) ror(opeland uint16) {
-
+	cpu.A >>= 1
+	if cpu.P.C {
+		cpu.A |= 0x80
+	}
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
+	cpu.P.C = cpu.A&0x01 == 1
 }
 
 func (cpu *CPU) sbc(opeland uint16) {
-
+	sbc := int16(uint16(cpu.A) - opeland)
+	if !cpu.P.C {
+		sbc--
+	}
+	cpu.P.N = sbc&0x80 == 1
+	cpu.P.V = cpu.A >= 0x80 && sbc < 0x80
+	cpu.P.Z = sbc == 0
+	cpu.P.C = sbc >= 0
 }
 
 //スタック命令
 func (cpu *CPU) pha(opeland uint16) {
-
+	cpu.push(cpu.A)
 }
 
 func (cpu *CPU) php(opeland uint16) {
-
+	data := uint8(0x00)
+	if cpu.P.N {
+		data |= 0x80
+	}
+	if cpu.P.V {
+		data |= 0x40
+	}
+	if cpu.P.R {
+		data |= 0x20
+	}
+	if cpu.P.B {
+		data |= 0x10
+	}
+	if cpu.P.D {
+		data |= 0x08
+	}
+	if cpu.P.I {
+		data |= 0x04
+	}
+	if cpu.P.Z {
+		data |= 0x02
+	}
+	if cpu.P.C {
+		data |= 0x01
+	}
+	cpu.push(data)
 }
 
 func (cpu *CPU) pla(opeland uint16) {
-
+	cpu.A = cpu.pop()
+	cpu.P.N = cpu.A&0x80 == 1
+	cpu.P.Z = cpu.A == 0
 }
 
 func (cpu *CPU) plp(opeland uint16) {
-
+	plp := cpu.pop()
+	cpu.P.N = plp&0x80 == 1
+	cpu.P.V = plp&0x40 == 1
+	cpu.P.R = plp&0x20 == 1
+	cpu.P.B = plp&0x10 == 1
+	cpu.P.D = plp&0x08 == 1
+	cpu.P.I = plp&0x04 == 1
+	cpu.P.Z = plp&0x02 == 1
+	cpu.P.C = plp&0x01 == 1
 }
 
 //ジャンプ命令
@@ -249,93 +358,120 @@ func (cpu *CPU) jmp(opeland uint16) {
 }
 
 func (cpu *CPU) jsr(opeland uint16) {
-
+	cpu.PC--
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.PC = opeland
 }
 
 func (cpu *CPU) rts(opeland uint16) {
-
+	cpu.PC = uint16(cpu.pop()) + uint16(cpu.pop())<<8
+	cpu.PC++
 }
 
 func (cpu *CPU) rti(opeland uint16) {
-
+	rti := cpu.pop()
+	cpu.P.N = rti&0x80 == 1
+	cpu.P.V = rti&0x40 == 1
+	cpu.P.R = rti&0x20 == 1
+	cpu.P.B = rti&0x10 == 1
+	cpu.P.D = rti&0x08 == 1
+	cpu.P.I = rti&0x04 == 1
+	cpu.P.Z = rti&0x02 == 1
+	cpu.P.C = rti&0x01 == 1
+	cpu.PC = uint16(cpu.pop()) + uint16(cpu.pop())<<8
 }
 
 //分岐命令
 func (cpu *CPU) bcc(opeland uint16) {
-
+	if !cpu.P.C {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) bcs(opeland uint16) {
-
+	if cpu.P.C {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) beq(opeland uint16) {
-
+	if cpu.P.Z {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) bmi(opeland uint16) {
-
+	if cpu.P.N {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) bne(opeland uint16) {
-	if cpu.P < 128 {
+	if !cpu.P.Z {
 		cpu.PC = opeland
 	}
 }
 
 func (cpu *CPU) bpl(opeland uint16) {
-
+	if !cpu.P.N {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) bvc(opeland uint16) {
-
+	if !cpu.P.V {
+		cpu.PC = opeland
+	}
 }
 
 func (cpu *CPU) bvs(opeland uint16) {
-
+	if cpu.P.V {
+		cpu.PC = opeland
+	}
 }
 
 //フラグ変更命令
 func (cpu *CPU) clc(opeland uint16) {
-
+	cpu.P.C = false
 }
 
 func (cpu *CPU) cld(opeland uint16) {
-
+	cpu.P.D = false
 }
 
 func (cpu *CPU) cli(opeland uint16) {
-
+	cpu.P.I = false
 }
 
 func (cpu *CPU) clv(opeland uint16) {
-
+	cpu.P.V = false
 }
 
 func (cpu *CPU) sec(opeland uint16) {
-
+	cpu.P.C = true
 }
-func (cpu *CPU) sed(opeland uint16) {
 
+func (cpu *CPU) sed(opeland uint16) {
+	cpu.P.D = true
 }
 
 func (cpu *CPU) sei(opeland uint16) {
-	cpu.P |= (1 << 2)
+	cpu.P.I = true
 }
 
 //その他の命令
 func (cpu *CPU) brk(opeland uint16) {
-	if cpu.P&(1<<2) == 1 {
+	if cpu.P.I {
 		return
 	}
-	cpu.P |= (1 << 4)
+	cpu.P.B = true
 	cpu.PC++
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P |= (1 << 2)
-	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0)
+	cpu.sei(0)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFF))<<8 + uint16(cpu.bus.Read(0xFFFE))
 }
 
 func (cpu *CPU) nop(opeland uint16) {

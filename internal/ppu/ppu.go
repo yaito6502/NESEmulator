@@ -30,6 +30,7 @@ type PPU struct {
 func NewPPU(bus *ppubus.PPUBUS) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
+	ppu.clock = 21
 	ppu.image = ebiten.NewImage(256, 240)
 	return ppu
 }
@@ -170,6 +171,14 @@ func (ppu *PPU) fillLineInImage() {
 		tile.palette = ppu.NewPalette(paletteID)
 		ppu.fillTileInImage(tile)
 	}
+}
+
+func (ppu *PPU) GetLine() uint16 {
+	return ppu.line
+}
+
+func (ppu *PPU) GetClock() uint16 {
+	return ppu.clock
 }
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {

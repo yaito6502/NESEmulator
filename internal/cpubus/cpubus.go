@@ -12,8 +12,8 @@ type CPUBUS struct {
 	wramMirror *mem.RAM
 	ppu        *ppu.PPU
 	apuIOPad   [0x0020]byte
-	extRom     *mem.ROM
-	extRam     *mem.RAM
+	extRom     [0x1FE0]byte
+	extRam     [0x2000]byte
 	prgRom     *mem.ROM
 }
 
@@ -55,9 +55,9 @@ func (bus *CPUBUS) Read(address uint16) byte {
 	case address <= 0x401F:
 		return bus.apuIOPad[address-0x4000]
 	case address <= 0x5FFF:
-		return bus.extRom.Read(address - 0x4020)
+		return bus.extRom[address-0x4020]
 	case address <= 0x7FFF:
-		return bus.extRam.Read(address)
+		return bus.extRam[address-0x6000]
 	case address <= 0xBFFF:
 		return bus.prgRom.Read(address - 0x8000)
 	case address <= 0xFFFF:
@@ -83,7 +83,7 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 	case address <= 0x5FFF:
 
 	case address <= 0x7FFF:
-		bus.extRam.Write(address, data)
+		bus.extRam[address-0x6000] = data
 	case address <= 0xBFFF:
 
 	case address <= 0xFFFF:
