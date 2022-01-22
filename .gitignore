@@ -3,3 +3,4 @@ sample*
 /.vscode
 go.mod
 go.sum
+test/

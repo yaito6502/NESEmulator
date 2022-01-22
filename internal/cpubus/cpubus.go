@@ -61,7 +61,7 @@ func (bus *CPUBUS) Read(address uint16) byte {
 	case address <= 0xBFFF:
 		return bus.prgRom.Read(address - 0x8000)
 	case address <= 0xFFFF:
-		return bus.prgRom.Read(address - 0x8000)
+		return bus.prgRom.Read(address - 0xC000)
 	default:
 		log.Fatalf("address out of range %v", address)
 		return 0

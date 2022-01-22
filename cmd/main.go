@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"github.com/yaito6502/NESEmulator/internal/cartridge"
 	"github.com/yaito6502/NESEmulator/internal/nes"
 	"github.com/yaito6502/NESEmulator/tools"
@@ -8,7 +11,10 @@ import (
 
 func main() {
 	//[TODO]flagを使用し、debugモードやoriginal sizeの設定を可能にする
-	tools.SpriteDump("../third_party/sample1.nes")
-	nes := nes.NewNES(cartridge.NewCartridge("../third_party/sample1.nes"))
+	if os.Args[1] == "" {
+		log.Fatal("Input File Not Found")
+	}
+	tools.SpriteDump(os.Args[1])
+	nes := nes.NewNES(cartridge.NewCartridge(os.Args[1]))
 	nes.Run()
 }
