@@ -1,5 +1,7 @@
 package cpu
 
+import "github.com/yaito6502/NESEmulator/pkg"
+
 func getCyclesTable() []uint8 {
 	return []uint8{
 		/*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
@@ -160,10 +162,7 @@ func (cpu *CPU) tya(opeland uint16) {
 
 //算術命令
 func (cpu *CPU) adc(opeland uint16) {
-	adc := uint16(cpu.A) + opeland
-	if cpu.P.C {
-		adc++
-	}
+	adc := uint16(cpu.A) + opeland + pkg.Btouint16(cpu.P.C)
 	cpu.P.N = adc&0x80 == 1
 	cpu.P.V = cpu.A < 0x80 && adc >= 0x80
 	cpu.P.Z = adc == 0
@@ -270,10 +269,7 @@ func (cpu *CPU) ora(opeland uint16) {
 }
 
 func (cpu *CPU) rol(opeland uint16) {
-	cpu.A <<= 1
-	if cpu.P.C {
-		cpu.A++
-	}
+	cpu.A = cpu.A<<1 + pkg.Btouint8(cpu.P.C)
 	cpu.P.N = cpu.A&0x80 == 1
 	cpu.P.Z = cpu.A == 0
 	cpu.P.C = cpu.A&0x80 != 0
@@ -281,19 +277,14 @@ func (cpu *CPU) rol(opeland uint16) {
 
 func (cpu *CPU) ror(opeland uint16) {
 	cpu.A >>= 1
-	if cpu.P.C {
-		cpu.A |= 0x80
-	}
+	cpu.A = cpu.A>>1 + pkg.Btouint8(cpu.P.C)*0x80
 	cpu.P.N = cpu.A&0x80 == 1
 	cpu.P.Z = cpu.A == 0
 	cpu.P.C = cpu.A&0x01 == 1
 }
 
 func (cpu *CPU) sbc(opeland uint16) {
-	sbc := int16(uint16(cpu.A) - opeland)
-	if !cpu.P.C {
-		sbc--
-	}
+	sbc := int16(uint16(cpu.A) - opeland - pkg.Btouint16(cpu.P.C))
 	cpu.P.N = sbc&0x80 == 1
 	cpu.P.V = cpu.A >= 0x80 && sbc < 0x80
 	cpu.P.Z = sbc == 0
@@ -306,31 +297,14 @@ func (cpu *CPU) pha(opeland uint16) {
 }
 
 func (cpu *CPU) php(opeland uint16) {
-	data := uint8(0x00)
-	if cpu.P.N {
-		data |= 0x80
-	}
-	if cpu.P.V {
-		data |= 0x40
-	}
-	if cpu.P.R {
-		data |= 0x20
-	}
-	if cpu.P.B {
-		data |= 0x10
-	}
-	if cpu.P.D {
-		data |= 0x08
-	}
-	if cpu.P.I {
-		data |= 0x04
-	}
-	if cpu.P.Z {
-		data |= 0x02
-	}
-	if cpu.P.C {
-		data |= 0x01
-	}
+	data := pkg.Btouint8(cpu.P.N) << 7
+	data += pkg.Btouint8(cpu.P.V) << 6
+	data += pkg.Btouint8(cpu.P.V) << 5
+	data += pkg.Btouint8(cpu.P.V) << 4
+	data += pkg.Btouint8(cpu.P.V) << 3
+	data += pkg.Btouint8(cpu.P.V) << 2
+	data += pkg.Btouint8(cpu.P.V) << 1
+	data += pkg.Btouint8(cpu.P.V)
 	cpu.push(data)
 }
 
