@@ -1,14 +1,12 @@
 package cpu
 
 import (
-	"fmt"
 	"log"
-	"reflect"
-	"runtime"
 	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
-	"github.com/yaito6502/NESEmulator/internal/ppu"
+	"github.com/yaito6502/NESEmulator/internal/cpudebug"
+	"github.com/yaito6502/NESEmulator/pkg"
 )
 
 type Flags struct {
@@ -26,9 +24,8 @@ type CPU struct {
 	iTable []func(uint16)
 	aTable []func() uint16
 	cycles []uint8
-	cycle  uint
 	bus    *cpubus.CPUBUS
-	ppu    *ppu.PPU
+	info   *cpudebug.DebugInfo
 	A      uint8
 	X      uint8
 	Y      uint8
@@ -50,13 +47,12 @@ func NewFlags() *Flags {
 	return flags
 }
 
-func NewCPU(bus *cpubus.CPUBUS, ppu *ppu.PPU) *CPU {
+func NewCPU(bus *cpubus.CPUBUS, info *cpudebug.DebugInfo) *CPU {
 	cpu := new(CPU)
 	cpu.iTable = cpu.getInstructionTable()
 	cpu.aTable = cpu.getAddressingModeTable()
 	cpu.cycles = getCyclesTable()
-	cpu.cycle = 7
-	cpu.ppu = ppu
+	cpu.info = info
 	cpu.bus = bus
 	cpu.A = 0x00
 	cpu.X = 0x00
@@ -83,53 +79,33 @@ func (cpu *CPU) fetch() byte {
 	return data
 }
 
-func GetFuncName(i interface{}) string {
-	strs := strings.Split((runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()), ".")
-	return strs[len(strs)-1]
-}
-
-func (cpu *CPU) debug(inst func(uint16), addressing func() uint16) uint16 {
-	istr := GetFuncName(inst)
-	istr = strings.ToUpper(istr[:strings.Index(istr, "-")])
-
-	data := uint8(0x00)
-	if cpu.P.N {
-		data |= 0x80
-	}
-	if cpu.P.V {
-		data |= 0x40
-	}
-	if cpu.P.R {
-		data |= 0x20
-	}
-	if cpu.P.B {
-		data |= 0x10
-	}
-	if cpu.P.D {
-		data |= 0x08
-	}
-	if cpu.P.I {
-		data |= 0x04
-	}
-	if cpu.P.Z {
-		data |= 0x02
-	}
-	if cpu.P.C {
-		data |= 0x01
-	}
-	fmt.Printf("%X  %2X %2X %2X  %s                    A:%.2X X:%.2X Y:%.2X P:%.2X SP:%X PPU %3d,%3d CYC:%d\n", cpu.PC-1, 0, 0, 0, istr, cpu.A, cpu.X, cpu.Y, data, cpu.S, cpu.ppu.GetLine(), cpu.ppu.GetClock(), cpu.cycle)
-	return addressing()
-}
-
 func (cpu *CPU) Run() uint8 {
 	//割込割り込み(nmi, irq, brk)
+	cpu.info.PC = cpu.PC
+
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
 	addressing := cpu.aTable[opecode]
 	if inst == nil || addressing == nil {
 		log.Fatalf("opecode[%#x] not implement\n", opecode)
 	}
-	inst(cpu.debug(inst, addressing))
-	cpu.cycle += uint(cpu.cycles[opecode])
+
+	cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
+	cpu.info.ASMCODE += strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0])
+	cpu.info.A = cpu.A
+	cpu.info.X = cpu.X
+	cpu.info.Y = cpu.Y
+	data := pkg.Btouint8(cpu.P.N) << 7
+	data += pkg.Btouint8(cpu.P.V) << 6
+	data += pkg.Btouint8(cpu.P.R) << 5
+	data += pkg.Btouint8(cpu.P.B) << 4
+	data += pkg.Btouint8(cpu.P.D) << 3
+	data += pkg.Btouint8(cpu.P.I) << 2
+	data += pkg.Btouint8(cpu.P.Z) << 1
+	data += pkg.Btouint8(cpu.P.C)
+	cpu.info.P = data
+	cpu.info.SP = cpu.S
+
+	inst(addressing())
 	return cpu.cycles[opecode]
 }

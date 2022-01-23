@@ -9,6 +9,7 @@ import (
 	"github.com/yaito6502/NESEmulator/internal/cartridge"
 	"github.com/yaito6502/NESEmulator/internal/cpu"
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
+	"github.com/yaito6502/NESEmulator/internal/cpudebug"
 	"github.com/yaito6502/NESEmulator/internal/mem"
 	"github.com/yaito6502/NESEmulator/internal/ppu"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
@@ -28,18 +29,19 @@ type NES struct {
 	//APU *apu
 	//DMA *dma
 	//PAD *pad
-	image *ebiten.Image
+	image  *ebiten.Image
+	info   cpudebug.DebugInfo
+	cycles uint64
 }
 
 func NewNES(cart *cartridge.Cartridge) *NES {
-	//fmt.Printf("prom[%x], crom[%x]\n", len(cart.ProgramRom), len(cart.CharacterRom))
 	nes := new(NES)
 	nes.WRAM = mem.NewRAM(0x0800)
 	nes.VRAM = mem.NewRAM(0x2000)
 	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &nes.VRAM)
-	nes.PPU = ppu.NewPPU(nes.PPUBUS)
+	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.info)
 	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &cart.ProgramRom)
-	nes.CPU = cpu.NewCPU(nes.CPUBUS, nes.PPU)
+	nes.CPU = cpu.NewCPU(nes.CPUBUS, &nes.info)
 	return nes
 }
 
@@ -54,8 +56,11 @@ func (nes *NES) Run() {
 func (nes *NES) Update() error {
 	nes.image = nil
 	for nes.image == nil {
-		cycles := nes.CPU.Run()
-		nes.image = nes.PPU.Run(uint16(cycles) * 3)
+		cycle := nes.CPU.Run()
+		nes.image = nes.PPU.Run(uint16(cycle) * 3)
+		nes.cycles += uint64(cycle)
+		nes.info.CYCLE = nes.cycles
+		nes.info.Print()
 	}
 	return nil
 }

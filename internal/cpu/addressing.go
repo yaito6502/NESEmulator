@@ -1,5 +1,9 @@
 package cpu
 
+import (
+	"github.com/yaito6502/NESEmulator/pkg"
+)
+
 func (cpu *CPU) getAddressingModeTable() []func() uint16 {
 	return []func() uint16{
 		/*0x00*/ cpu.impliedAddressing, cpu.indexedIndirectAddressing, nil, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.accumulatorAddressing, nil, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
@@ -22,10 +26,14 @@ func (cpu *CPU) getAddressingModeTable() []func() uint16 {
 }
 
 func (cpu *CPU) accumulatorAddressing() uint16 {
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(cpu.bus.Read(uint16(cpu.A))))
+	cpu.info.ASMCODE += " #$" + pkg.ConvUpperHexString(uint64(cpu.bus.Read(uint16(cpu.A))))
 	return uint16(cpu.A)
 }
 
 func (cpu *CPU) immediateAddressing() uint16 {
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(cpu.bus.Read(cpu.PC)))
+	cpu.info.ASMCODE += " #$" + pkg.ConvUpperHexString(uint64(cpu.bus.Read(cpu.PC)))
 	address := cpu.PC
 	cpu.PC++
 	return address
@@ -34,37 +42,55 @@ func (cpu *CPU) immediateAddressing() uint16 {
 func (cpu *CPU) absoluteAddressing() uint16 {
 	low := uint16(cpu.fetch())
 	high := uint16(cpu.fetch())
-	return high<<8 + low
+	address := high<<8 + low
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address))
+	return address
 }
 
 func (cpu *CPU) zeroPageAddressing() uint16 {
 	low := uint16(cpu.fetch())
-	high := uint16(0x0000)
-	return high<<8 + low
+	address := 0x0000 + low
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address)) + " = " + pkg.ConvUpperHexString(uint64(cpu.bus.Read(address)))
+	return address
 }
 
 func (cpu *CPU) XindexedZeroPageAddressing() uint16 {
 	low := cpu.fetch() + cpu.X
-	high := uint16(0x0000)
-	return high<<8 + uint16(low)
+	address := 0x0000 + uint16(low)
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address)) + ",X @ " + "?" + " = " + "?"
+	return address
 }
 
 func (cpu *CPU) YindexedZeroPageAddressing() uint16 {
 	low := cpu.fetch() + cpu.Y
-	high := uint16(0x0000)
-	return high<<8 + uint16(low)
+	address := 0x0000 + uint16(low)
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address)) + ",Y @ " + "?" + " = " + "?"
+	return address
 }
 
 func (cpu *CPU) XindexedAbsoluteAddressing() uint16 {
 	low := uint16(cpu.fetch())
 	high := uint16(cpu.fetch())
-	return high<<8 + low + uint16(cpu.X)
+	address := high<<8 + low + uint16(cpu.X)
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address)) + ",X @ " + "?" + " = " + "?"
+	return address
 }
 
 func (cpu *CPU) YindexedAbsoluteAddressing() uint16 {
 	low := uint16(cpu.fetch())
 	high := uint16(cpu.fetch())
-	return high<<8 + low + uint16(cpu.Y)
+	address := high<<8 + low + uint16(cpu.Y)
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(address)) + ",Y @ " + "?" + " = " + "?"
+	return address
 }
 
 func (cpu *CPU) impliedAddressing() uint16 {
@@ -74,6 +100,8 @@ func (cpu *CPU) impliedAddressing() uint16 {
 func (cpu *CPU) relativeAddressing() uint16 {
 	address := cpu.PC + 1
 	offset := int8(cpu.fetch())
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(offset))
+	cpu.info.ASMCODE += " $" + pkg.ConvUpperHexString(uint64(int32(address)+int32(offset)))
 	return uint16(int32(address) + int32(offset))
 }
 
@@ -82,7 +110,11 @@ func (cpu *CPU) indexedIndirectAddressing() uint16 {
 	high := uint16(0x0000)
 	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
 	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
-	return high1<<8 + low1
+	address := high1<<8 + low1
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low1))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high1))
+	cpu.info.ASMCODE += " ($" + pkg.ConvUpperHexString(uint64(address)) + ",X) @ " + "?" + " = " + "?" + " = " + "?"
+	return address
 }
 
 func (cpu *CPU) indirectIndexedAddressing() uint16 {
@@ -90,7 +122,12 @@ func (cpu *CPU) indirectIndexedAddressing() uint16 {
 	high := uint16(0x0000)
 	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
 	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
-	return high1<<8 + low1 + uint16(cpu.Y)
+	address := high1<<8 + low1 + uint16(cpu.Y)
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low1))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high1))
+	cpu.info.ASMCODE += " ($" + pkg.ConvUpperHexString(uint64(address)) + "),Y = " + "?" + " @ " + "?" + " = " + "?"
+	//($33),Y = 0400 @ 0400 = 3F
+	return address
 }
 
 func (cpu *CPU) absoluteIndirectAddressing() uint16 {
@@ -98,5 +135,9 @@ func (cpu *CPU) absoluteIndirectAddressing() uint16 {
 	high := uint16(cpu.fetch())
 	low = high<<8 + low
 	high = high<<8 + low + 1
-	return high<<8 + low
+	address := high<<8 + low
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(low))
+	cpu.info.MACHINECODE += " " + pkg.ConvUpperHexString(uint64(high))
+	cpu.info.ASMCODE += " ($" + pkg.ConvUpperHexString(uint64(address)) + ") = " + pkg.ConvUpperHexString(uint64(cpu.bus.Read(address)))
+	return address
 }

@@ -1,6 +1,8 @@
 package cpu
 
-import "github.com/yaito6502/NESEmulator/pkg"
+import (
+	"github.com/yaito6502/NESEmulator/pkg"
+)
 
 func getCyclesTable() []uint8 {
 	return []uint8{
@@ -299,12 +301,12 @@ func (cpu *CPU) pha(opeland uint16) {
 func (cpu *CPU) php(opeland uint16) {
 	data := pkg.Btouint8(cpu.P.N) << 7
 	data += pkg.Btouint8(cpu.P.V) << 6
-	data += pkg.Btouint8(cpu.P.V) << 5
-	data += pkg.Btouint8(cpu.P.V) << 4
-	data += pkg.Btouint8(cpu.P.V) << 3
-	data += pkg.Btouint8(cpu.P.V) << 2
-	data += pkg.Btouint8(cpu.P.V) << 1
-	data += pkg.Btouint8(cpu.P.V)
+	data += pkg.Btouint8(cpu.P.R) << 5
+	data += pkg.Btouint8(cpu.P.B) << 4
+	data += pkg.Btouint8(cpu.P.D) << 3
+	data += pkg.Btouint8(cpu.P.I) << 2
+	data += pkg.Btouint8(cpu.P.Z) << 1
+	data += pkg.Btouint8(cpu.P.C)
 	cpu.push(data)
 }
 
@@ -361,48 +363,56 @@ func (cpu *CPU) bcc(opeland uint16) {
 	if !cpu.P.C {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bcs(opeland uint16) {
 	if cpu.P.C {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) beq(opeland uint16) {
 	if cpu.P.Z {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bmi(opeland uint16) {
 	if cpu.P.N {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bne(opeland uint16) {
 	if !cpu.P.Z {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bpl(opeland uint16) {
 	if !cpu.P.N {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bvc(opeland uint16) {
 	if !cpu.P.V {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 func (cpu *CPU) bvs(opeland uint16) {
 	if cpu.P.V {
 		cpu.PC = opeland
 	}
+	//cpu.info.MACHINECODE += " " + strings.ToUpper(strconv.FormatUint(uint64(opeland-cpu.PC), 16))
 }
 
 //フラグ変更命令
