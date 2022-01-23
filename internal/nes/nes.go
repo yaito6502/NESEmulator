@@ -30,7 +30,7 @@ type NES struct {
 	//DMA *dma
 	//PAD *pad
 	image  *ebiten.Image
-	info   cpudebug.DebugInfo
+	Info   cpudebug.DebugInfo
 	cycles uint64
 }
 
@@ -39,9 +39,9 @@ func NewNES(cart *cartridge.Cartridge) *NES {
 	nes.WRAM = mem.NewRAM(0x0800)
 	nes.VRAM = mem.NewRAM(0x2000)
 	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &nes.VRAM)
-	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.info)
+	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.Info)
 	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &cart.ProgramRom)
-	nes.CPU = cpu.NewCPU(nes.CPUBUS, &nes.info)
+	nes.CPU = cpu.NewCPU(nes.CPUBUS, &nes.Info)
 	return nes
 }
 
@@ -59,8 +59,8 @@ func (nes *NES) Update() error {
 		cycle := nes.CPU.Run()
 		nes.image = nes.PPU.Run(uint16(cycle) * 3)
 		nes.cycles += uint64(cycle)
-		nes.info.CYCLE = nes.cycles
-		nes.info.Print()
+		nes.Info.CYCLE = nes.cycles
+		nes.Info.Print()
 	}
 	return nil
 }

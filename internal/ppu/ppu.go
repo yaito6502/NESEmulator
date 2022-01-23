@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 )
