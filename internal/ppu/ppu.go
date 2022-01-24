@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+
+	"github.com/yaito6502/NESEmulator/internal/cpudebug"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 )
 
@@ -25,12 +27,14 @@ type PPU struct {
 	line  uint16
 	image *ebiten.Image
 	bus   *ppubus.PPUBUS
+	info  *cpudebug.DebugInfo
 }
 
-func NewPPU(bus *ppubus.PPUBUS) *PPU {
+func NewPPU(bus *ppubus.PPUBUS, info *cpudebug.DebugInfo) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
 	ppu.image = ebiten.NewImage(256, 240)
+	ppu.info = info
 	return ppu
 }
 
@@ -173,6 +177,8 @@ func (ppu *PPU) fillLineInImage() {
 }
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
+	ppu.info.PPUX = ppu.clock
+	ppu.info.PPUY = ppu.line
 	ppu.clock += cycles
 
 	//ppu.clock[0 ~ 255] -> Draw Display

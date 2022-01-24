@@ -1,5 +1,9 @@
 package cpu
 
+import (
+	"github.com/yaito6502/NESEmulator/pkg"
+)
+
 func getCyclesTable() []uint8 {
 	return []uint8{
 		/*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
@@ -21,8 +25,8 @@ func getCyclesTable() []uint8 {
 	}
 }
 
-func (cpu *CPU) getInstructionTable() []func(uint16) {
-	return []func(uint16){
+func (cpu *CPU) getInstructionTable() []func(uint16, bool) {
+	return []func(uint16, bool){
 		/*0x00*/ cpu.brk, cpu.ora, nil, nil, nil, cpu.ora, cpu.asl, nil, cpu.php, cpu.ora, cpu.asl, nil, nil, cpu.ora, cpu.asl, nil,
 		/*0x10*/ cpu.bpl, cpu.ora, nil, nil, nil, cpu.ora, cpu.asl, nil, cpu.clc, cpu.ora, nil, nil, nil, cpu.ora, cpu.asl, nil,
 		/*0x20*/ cpu.jsr, cpu.and, nil, nil, cpu.bit, cpu.and, cpu.rol, nil, cpu.plp, cpu.and, cpu.rol, nil, cpu.bit, cpu.and, cpu.rol, nil,
@@ -42,397 +46,447 @@ func (cpu *CPU) getInstructionTable() []func(uint16) {
 	}
 }
 
-func (cpu *CPU) getAddressingModeTable() []func() uint16 {
-	return []func() uint16{
-		/*0x00*/ cpu.impliedAddressing, cpu.indexedIndirectAddressing, nil, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.accumulatorAddressing, nil, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0x10*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-		/*0x20*/ cpu.absoluteAddressing, cpu.indexedIndirectAddressing, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.accumulatorAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0x30*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-		/*0x40*/ cpu.impliedAddressing, cpu.indexedIndirectAddressing, nil, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.accumulatorAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0x50*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-		/*0x60*/ cpu.impliedAddressing, cpu.indexedIndirectAddressing, nil, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.accumulatorAddressing, nil, cpu.absoluteIndirectAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0x70*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-		/*0x80*/ nil, cpu.XindexedAbsoluteAddressing, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, nil, cpu.impliedAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0x90*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, cpu.YindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, cpu.impliedAddressing, nil, nil, cpu.XindexedAbsoluteAddressing, nil, nil,
-		/*0xA0*/ cpu.immediateAddressing, cpu.indexedIndirectAddressing, cpu.immediateAddressing, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.impliedAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0xB0*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, cpu.YindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, cpu.impliedAddressing, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, cpu.YindexedAbsoluteAddressing, nil,
-		/*0xC0*/ cpu.immediateAddressing, cpu.indexedIndirectAddressing, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.impliedAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0xD0*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-		/*0xE0*/ cpu.immediateAddressing, cpu.indexedIndirectAddressing, nil, nil, cpu.zeroPageAddressing, cpu.zeroPageAddressing, cpu.zeroPageAddressing, nil, cpu.impliedAddressing, cpu.immediateAddressing, cpu.impliedAddressing, nil, cpu.absoluteAddressing, cpu.absoluteAddressing, cpu.absoluteAddressing, nil,
-		/*0xF0*/ cpu.relativeAddressing, cpu.indirectIndexedAddressing, nil, nil, nil, cpu.XindexedZeroPageAddressing, cpu.XindexedZeroPageAddressing, nil, cpu.impliedAddressing, cpu.YindexedAbsoluteAddressing, nil, nil, nil, cpu.XindexedAbsoluteAddressing, cpu.XindexedAbsoluteAddressing, nil,
-	}
-}
-
-func (cpu *CPU) accumulatorAddressing() uint16 {
-	return uint16(cpu.A)
-}
-
-func (cpu *CPU) immediateAddressing() uint16 {
-	address := cpu.PC
-	cpu.PC++
-	return address
-}
-
-func (cpu *CPU) absoluteAddressing() uint16 {
-	low := uint16(cpu.fetch())
-	high := uint16(cpu.fetch())
-	return high<<8 + low
-}
-
-func (cpu *CPU) zeroPageAddressing() uint16 {
-	low := uint16(cpu.fetch())
-	high := uint16(0x0000)
-	return high<<8 + low
-}
-
-func (cpu *CPU) XindexedZeroPageAddressing() uint16 {
-	low := cpu.fetch() + cpu.X
-	high := uint16(0x0000)
-	return high<<8 + uint16(low)
-}
-
-func (cpu *CPU) YindexedZeroPageAddressing() uint16 {
-	low := cpu.fetch() + cpu.Y
-	high := uint16(0x0000)
-	return high<<8 + uint16(low)
-}
-
-func (cpu *CPU) XindexedAbsoluteAddressing() uint16 {
-	low := uint16(cpu.fetch())
-	high := uint16(cpu.fetch())
-	return high<<8 + low + uint16(cpu.X)
-}
-
-func (cpu *CPU) YindexedAbsoluteAddressing() uint16 {
-	low := uint16(cpu.fetch())
-	high := uint16(cpu.fetch())
-	return high<<8 + low + uint16(cpu.Y)
-}
-
-func (cpu *CPU) impliedAddressing() uint16 {
-	return 0x0000
-}
-
-func (cpu *CPU) relativeAddressing() uint16 {
-	address := cpu.PC + 1
-	offset := int8(cpu.fetch())
-	return uint16(int32(address) + int32(offset))
-}
-
-func (cpu *CPU) indexedIndirectAddressing() uint16 {
-	low := cpu.fetch() + cpu.X
-	high := uint16(0x0000)
-	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
-	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
-	return high1<<8 + low1
-}
-
-func (cpu *CPU) indirectIndexedAddressing() uint16 {
-	low := cpu.fetch()
-	high := uint16(0x0000)
-	low1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low) + 1))
-	high1 := uint16(cpu.bus.Read(uint16(high<<8) + uint16(low)))
-	return high1<<8 + low1 + uint16(cpu.Y)
-}
-
-func (cpu *CPU) absoluteIndirectAddressing() uint16 {
-	low := uint16(cpu.fetch())
-	high := uint16(cpu.fetch())
-	low = high<<8 + low
-	high = high<<8 + low + 1
-	return high<<8 + low
-}
-
-/*
 func (cpu *CPU) reset() {
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFD), cpu.bus.Read(0xFFFC))
+	cpu.sei(0, false)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFD))<<8 + uint16(cpu.bus.Read(0xFFFC))
 }
 
 func (cpu *CPU) nmi() {
 	cpu.P.B = false
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFB), cpu.bus.Read(0xFFFA))
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0, false)
+	cpu.sei(0, false)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFB))<<8 + uint16(cpu.bus.Read(0xFFFA))
 }
 
 func (cpu *CPU) irq() {
 	if cpu.P.I {
 		return
 	}
-	cpu.P.B = true
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
+	cpu.P.B = false
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0, false)
+	cpu.sei(0, false)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFF))<<8 + uint16(cpu.bus.Read(0xFFFE))
 }
-*/
 
 //hello worldに最低限必要な命令を優先して実装する
 
+const (
+	C = iota
+	Z
+	I
+	D
+	B
+	R
+	V
+	N
+)
+
+/* flagをビット演算で処理する場合の実装
+func (cpu *CPU) setFlag(bit, exp uint8) {
+	cpu.P = (cpu.P & (0xFF ^ (1 << bit))) | exp
+}
+
+func (cpu *CPU) getFlag(bit uint8) uint8 {
+	return cpu.P & (1 << bit)
+}
+*/
+
 //転送命令
-func (cpu *CPU) lda(opeland uint16) {
-	//fmt.Print(cpu.PC, " lda")
+func (cpu *CPU) lda(opeland uint16, isaddr bool) {
 	cpu.A = cpu.bus.Read(opeland)
-	cpu.P.N = (cpu.A>>7)&1 == 1
-	cpu.P.Z = (cpu.A == 0)
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) ldx(opeland uint16) {
-	//fmt.Print(cpu.PC, " ldx")
+func (cpu *CPU) ldx(opeland uint16, isaddr bool) {
 	cpu.X = cpu.bus.Read(opeland)
-	cpu.P.N = (cpu.X>>7)&1 == 1
-	cpu.P.Z = (cpu.X == 0)
+	cpu.P.N = cpu.X&0x80 != 0
+	cpu.P.Z = cpu.X == 0
 }
 
-func (cpu *CPU) ldy(opeland uint16) {
-	//fmt.Print(cpu.PC, " ldy")
+func (cpu *CPU) ldy(opeland uint16, isaddr bool) {
 	cpu.Y = cpu.bus.Read(opeland)
-	cpu.P.N = (cpu.Y>>7)&1 == 1
-	cpu.P.Z = (cpu.Y == 0)
+	cpu.P.N = cpu.Y&0x80 != 0
+	cpu.P.Z = cpu.Y == 0
 }
 
-func (cpu *CPU) sta(opeland uint16) {
-	//fmt.Print(cpu.PC, " sta")
+func (cpu *CPU) sta(opeland uint16, isaddr bool) {
 	cpu.bus.Write(opeland, cpu.A)
 }
 
-func (cpu *CPU) stx(opeland uint16) {
-
+func (cpu *CPU) stx(opeland uint16, isaddr bool) {
+	cpu.bus.Write(opeland, cpu.X)
 }
 
-func (cpu *CPU) sty(opeland uint16) {
-
+func (cpu *CPU) sty(opeland uint16, isaddr bool) {
+	cpu.bus.Write(opeland, cpu.Y)
 }
 
-func (cpu *CPU) tax(opeland uint16) {
-
+func (cpu *CPU) tax(opeland uint16, isaddr bool) {
+	cpu.X = cpu.A
+	cpu.P.N = cpu.X&0x80 != 0
+	cpu.P.Z = cpu.X == 0
 }
 
-func (cpu *CPU) tay(opeland uint16) {
-
+func (cpu *CPU) tay(opeland uint16, isaddr bool) {
+	cpu.Y = cpu.A
+	cpu.P.N = cpu.Y&0x80 != 0
+	cpu.P.Z = cpu.Y == 0
 }
 
-func (cpu *CPU) tsx(opeland uint16) {
-
+func (cpu *CPU) tsx(opeland uint16, isaddr bool) {
+	cpu.X = cpu.S
+	cpu.P.N = cpu.X&0x80 != 0
+	cpu.P.Z = cpu.X == 0
 }
 
-func (cpu *CPU) txa(opeland uint16) {
-
+func (cpu *CPU) txa(opeland uint16, isaddr bool) {
+	cpu.A = cpu.X
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) txs(opeland uint16) {
-	//fmt.Print(cpu.PC, " txs")
+func (cpu *CPU) txs(opeland uint16, isaddr bool) {
 	cpu.S = cpu.X
+	cpu.P.N = true
+	cpu.P.Z = false
 }
 
-func (cpu *CPU) tya(opeland uint16) {
-
+func (cpu *CPU) tya(opeland uint16, isaddr bool) {
+	cpu.A = cpu.Y
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
 //算術命令
-func (cpu *CPU) adc(opeland uint16) {
 
+//UnderStanding OverFlow Flag
+func (cpu *CPU) adc(opeland uint16, isaddr bool) {
+	adc := uint16(cpu.A) + uint16(cpu.bus.Read(opeland)) + pkg.Btouint16(cpu.P.C)
+	cpu.P.N = adc&0x80 != 0
+	cpu.P.V = (uint16(cpu.A)^adc)&(uint16(cpu.bus.Read(opeland))^adc)&0x80 != 0
+	cpu.P.Z = uint8(adc) == 0
+	cpu.P.C = adc > 0xFF
+	cpu.A = uint8(adc)
 }
 
-func (cpu *CPU) and(opeland uint16) {
-
+func (cpu *CPU) and(opeland uint16, isaddr bool) {
+	cpu.A &= cpu.bus.Read(opeland)
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) asl(opeland uint16) {
-
+func (cpu *CPU) asl(opeland uint16, isaddr bool) {
+	if isaddr {
+		asl := uint16(cpu.bus.Read(opeland)) << 1
+		cpu.P.N = asl&0x80 != 0
+		cpu.P.Z = uint8(asl) == 0
+		cpu.P.C = asl > 0xFF
+		cpu.bus.Write(opeland, uint8(asl))
+	} else {
+		asl := uint16(cpu.A) << 1
+		cpu.P.N = asl&0x80 != 0
+		cpu.P.Z = uint8(asl) == 0
+		cpu.P.C = asl > 0xFF
+		cpu.A = uint8(asl)
+	}
 }
 
-func (cpu *CPU) bit(opeland uint16) {
-
+func (cpu *CPU) bit(opeland uint16, isaddr bool) {
+	data := cpu.bus.Read(opeland)
+	cpu.P.N = data&0x80 != 0
+	cpu.P.V = data&0x40 != 0
+	cpu.P.Z = (cpu.A & data) == 0
 }
 
-func (cpu *CPU) cmp(opeland uint16) {
-
+func (cpu *CPU) cmp(opeland uint16, isaddr bool) {
+	cmp := int16(uint16(cpu.A) - uint16(cpu.bus.Read(opeland)))
+	cpu.P.N = cmp&0x80 != 0
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
-func (cpu *CPU) cpx(opeland uint16) {
-
+func (cpu *CPU) cpx(opeland uint16, isaddr bool) {
+	cmp := int16(uint16(cpu.X) - uint16(cpu.bus.Read(opeland)))
+	cpu.P.N = cmp&0x80 != 0
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
-func (cpu *CPU) cpy(opeland uint16) {
-
+func (cpu *CPU) cpy(opeland uint16, isaddr bool) {
+	cmp := int16(uint16(cpu.Y) - uint16(cpu.bus.Read(opeland)))
+	cpu.P.N = cmp&0x80 != 0
+	cpu.P.Z = cmp == 0
+	cpu.P.C = cmp >= 0
 }
 
-func (cpu *CPU) dec(opeland uint16) {
-
+func (cpu *CPU) dec(opeland uint16, isaddr bool) {
+	dec := cpu.bus.Read(opeland) - 1
+	cpu.bus.Write(opeland, dec)
+	cpu.P.N = dec&0x80 != 0
+	cpu.P.Z = dec == 0
 }
 
-func (cpu *CPU) dex(opeland uint16) {
-
+func (cpu *CPU) dex(opeland uint16, isaddr bool) {
+	cpu.X--
+	cpu.P.N = cpu.X&0x80 != 0
+	cpu.P.Z = cpu.X == 0
 }
 
-func (cpu *CPU) dey(opeland uint16) {
-	//fmt.Print(cpu.PC, " dey")
+func (cpu *CPU) dey(opeland uint16, isaddr bool) {
 	cpu.Y--
-	cpu.P.N = (cpu.Y>>7)&1 == 1
-	cpu.P.Z = (cpu.Y == 0)
+	cpu.P.N = cpu.Y&0x80 != 0
+	cpu.P.Z = cpu.Y == 0
 }
 
-func (cpu *CPU) eor(opeland uint16) {
-
+func (cpu *CPU) eor(opeland uint16, isaddr bool) {
+	cpu.A ^= cpu.bus.Read(opeland)
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) inc(opeland uint16) {
-
+func (cpu *CPU) inc(opeland uint16, isaddr bool) {
+	inc := cpu.bus.Read(opeland) + 1
+	cpu.bus.Write(opeland, inc)
+	cpu.P.N = inc&0x80 != 0
+	cpu.P.Z = inc == 0
 }
 
-func (cpu *CPU) inx(opeland uint16) {
-	//fmt.Print(cpu.PC, " inx")
+func (cpu *CPU) inx(opeland uint16, isaddr bool) {
 	cpu.X++
-	cpu.P.N = (cpu.X>>7)&1 == 1
-	cpu.P.Z = (cpu.X == 0)
+	cpu.P.N = cpu.X&0x80 != 0
+	cpu.P.Z = cpu.X == 0
 }
 
-func (cpu *CPU) iny(opeland uint16) {
-
+func (cpu *CPU) iny(opeland uint16, isaddr bool) {
+	cpu.Y++
+	cpu.P.N = cpu.Y&0x80 != 0
+	cpu.P.Z = cpu.Y == 0
 }
 
-func (cpu *CPU) lsr(opeland uint16) {
-
+func (cpu *CPU) lsr(opeland uint16, isaddr bool) {
+	if isaddr {
+		lsr := cpu.bus.Read(opeland) >> 1
+		cpu.P.N = lsr&0x80 != 0
+		cpu.P.Z = lsr == 0
+		cpu.P.C = cpu.bus.Read(opeland)&0x01 != 0
+		cpu.bus.Write(opeland, lsr)
+	} else {
+		lsr := cpu.A >> 1
+		cpu.P.N = lsr&0x80 != 0
+		cpu.P.Z = lsr == 0
+		cpu.P.C = cpu.A&0x01 != 0
+		cpu.A = lsr
+	}
 }
 
-func (cpu *CPU) ora(opeland uint16) {
-
+func (cpu *CPU) ora(opeland uint16, isaddr bool) {
+	cpu.A |= cpu.bus.Read(opeland)
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) rol(opeland uint16) {
-
+func (cpu *CPU) rol(opeland uint16, isaddr bool) {
+	if isaddr {
+		rol := cpu.bus.Read(opeland)<<1 + pkg.Btouint8(cpu.P.C)
+		cpu.P.N = rol&0x80 != 0
+		cpu.P.Z = rol == 0
+		cpu.P.C = cpu.bus.Read(opeland)&0x80 != 0
+		cpu.bus.Write(opeland, rol)
+	} else {
+		rol := cpu.A<<1 + pkg.Btouint8(cpu.P.C)
+		cpu.P.N = rol&0x80 != 0
+		cpu.P.Z = rol == 0
+		cpu.P.C = cpu.A&0x80 != 0
+		cpu.A = rol
+	}
 }
 
-func (cpu *CPU) ror(opeland uint16) {
-
+func (cpu *CPU) ror(opeland uint16, isaddr bool) {
+	if isaddr {
+		ror := cpu.bus.Read(opeland)>>1 + pkg.Btouint8(cpu.P.C)<<7
+		cpu.P.N = ror&0x80 != 0
+		cpu.P.Z = ror == 0
+		cpu.P.C = cpu.bus.Read(opeland)&0x01 != 0
+		cpu.bus.Write(opeland, ror)
+	} else {
+		ror := cpu.A>>1 + pkg.Btouint8(cpu.P.C)<<7
+		cpu.P.N = ror&0x80 != 0
+		cpu.P.Z = ror == 0
+		cpu.P.C = cpu.A&0x01 != 0
+		cpu.A = ror
+	}
 }
 
-func (cpu *CPU) sbc(opeland uint16) {
-
+func (cpu *CPU) sbc(opeland uint16, isaddr bool) {
+	sbc := uint16(cpu.A) - uint16(cpu.bus.Read(opeland)) - (pkg.Btouint16(cpu.P.C) ^ 0x01)
+	cpu.P.N = sbc&0x80 != 0
+	cpu.P.V = (uint16(cpu.A)^sbc)&(uint16(cpu.A)^uint16(cpu.bus.Read(opeland)))&0x80 != 0
+	cpu.P.Z = uint8(sbc) == 0
+	cpu.P.C = sbc <= 0xFF
+	cpu.A = uint8(sbc)
 }
 
 //スタック命令
-func (cpu *CPU) pha(opeland uint16) {
-
+func (cpu *CPU) pha(opeland uint16, isaddr bool) {
+	cpu.push(cpu.A)
 }
 
-func (cpu *CPU) php(opeland uint16) {
-
+func (cpu *CPU) php(opeland uint16, isaddr bool) {
+	data := pkg.Btouint8(cpu.P.N) << 7
+	data += pkg.Btouint8(cpu.P.V) << 6
+	data += 1 << 5
+	data += 1 << 4
+	data += pkg.Btouint8(cpu.P.D) << 3
+	data += pkg.Btouint8(cpu.P.I) << 2
+	data += pkg.Btouint8(cpu.P.Z) << 1
+	data += pkg.Btouint8(cpu.P.C)
+	cpu.push(data)
 }
 
-func (cpu *CPU) pla(opeland uint16) {
-
+func (cpu *CPU) pla(opeland uint16, isaddr bool) {
+	cpu.A = cpu.pop()
+	cpu.P.N = cpu.A&0x80 != 0
+	cpu.P.Z = cpu.A == 0
 }
 
-func (cpu *CPU) plp(opeland uint16) {
-
+func (cpu *CPU) plp(opeland uint16, isaddr bool) {
+	plp := cpu.pop()
+	cpu.P.N = plp&0x80 != 0
+	cpu.P.V = plp&0x40 != 0
+	//cpu.P.R = plp&0x20 != 0
+	//cpu.P.B = plp&0x10 != 0
+	cpu.P.D = plp&0x08 != 0
+	cpu.P.I = plp&0x04 != 0
+	cpu.P.Z = plp&0x02 != 0
+	cpu.P.C = plp&0x01 != 0
 }
 
 //ジャンプ命令
-func (cpu *CPU) jmp(opeland uint16) {
-	//fmt.Print(cpu.PC, " jmp")
+func (cpu *CPU) jmp(opeland uint16, isaddr bool) {
 	cpu.PC = opeland
 }
 
-func (cpu *CPU) jsr(opeland uint16) {
-
+func (cpu *CPU) jsr(opeland uint16, isaddr bool) {
+	cpu.PC--
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.PC = opeland
 }
 
-func (cpu *CPU) rts(opeland uint16) {
-
+func (cpu *CPU) rts(opeland uint16, isaddr bool) {
+	cpu.PC = uint16(cpu.pop()) + uint16(cpu.pop())<<8
+	cpu.PC++
 }
 
-func (cpu *CPU) rti(opeland uint16) {
-
+func (cpu *CPU) rti(opeland uint16, isaddr bool) {
+	rti := cpu.pop()
+	cpu.P.N = rti&0x80 != 0
+	cpu.P.V = rti&0x40 != 0
+	//cpu.P.R = rti&0x20 != 0
+	cpu.P.B = rti&0x10 != 0
+	cpu.P.D = rti&0x08 != 0
+	cpu.P.I = rti&0x04 != 0
+	cpu.P.Z = rti&0x02 != 0
+	cpu.P.C = rti&0x01 != 0
+	cpu.PC = uint16(cpu.pop()) + uint16(cpu.pop())<<8
 }
 
 //分岐命令
-func (cpu *CPU) bcc(opeland uint16) {
-
+func (cpu *CPU) bcc(opeland uint16, isaddr bool) {
+	if !cpu.P.C {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) bcs(opeland uint16) {
-
+func (cpu *CPU) bcs(opeland uint16, isaddr bool) {
+	if cpu.P.C {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) beq(opeland uint16) {
-
+func (cpu *CPU) beq(opeland uint16, isaddr bool) {
+	if cpu.P.Z {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) bmi(opeland uint16) {
-
+func (cpu *CPU) bmi(opeland uint16, isaddr bool) {
+	if cpu.P.N {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) bne(opeland uint16) {
-	//fmt.Print(cpu.PC, " bne")
+func (cpu *CPU) bne(opeland uint16, isaddr bool) {
 	if !cpu.P.Z {
 		cpu.PC = opeland
 	}
 }
 
-func (cpu *CPU) bpl(opeland uint16) {
-
+func (cpu *CPU) bpl(opeland uint16, isaddr bool) {
+	if !cpu.P.N {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) bvc(opeland uint16) {
-
+func (cpu *CPU) bvc(opeland uint16, isaddr bool) {
+	if !cpu.P.V {
+		cpu.PC = opeland
+	}
 }
 
-func (cpu *CPU) bvs(opeland uint16) {
-
+func (cpu *CPU) bvs(opeland uint16, isaddr bool) {
+	if cpu.P.V {
+		cpu.PC = opeland
+	}
 }
 
 //フラグ変更命令
-func (cpu *CPU) clc(opeland uint16) {
-
+func (cpu *CPU) clc(opeland uint16, isaddr bool) {
+	cpu.P.C = false
 }
 
-func (cpu *CPU) cld(opeland uint16) {
-
+func (cpu *CPU) cld(opeland uint16, isaddr bool) {
+	cpu.P.D = false
 }
 
-func (cpu *CPU) cli(opeland uint16) {
-
+func (cpu *CPU) cli(opeland uint16, isaddr bool) {
+	cpu.P.I = false
 }
 
-func (cpu *CPU) clv(opeland uint16) {
-
+func (cpu *CPU) clv(opeland uint16, isaddr bool) {
+	cpu.P.V = false
 }
 
-func (cpu *CPU) sec(opeland uint16) {
-
-}
-func (cpu *CPU) sed(opeland uint16) {
-
+func (cpu *CPU) sec(opeland uint16, isaddr bool) {
+	cpu.P.C = true
 }
 
-func (cpu *CPU) sei(opeland uint16) {
-	//fmt.Print(cpu.PC, " sei")
+func (cpu *CPU) sed(opeland uint16, isaddr bool) {
+	cpu.P.D = true
+}
+
+func (cpu *CPU) sei(opeland uint16, isaddr bool) {
 	cpu.P.I = true
 }
 
 //その他の命令
-func (cpu *CPU) brk(opeland uint16) {
-	//fmt.Print(cpu.PC, " brk")
+func (cpu *CPU) brk(opeland uint16, isaddr bool) {
 	if cpu.P.I {
 		return
 	}
 	cpu.P.B = true
 	cpu.PC++
-	high, low := cpu.fetchPC()
-	cpu.push(high)
-	cpu.push(low)
-	//cpu.push(cpu.P)
-	cpu.P.I = true
-	cpu.storePC(cpu.bus.Read(0xFFFF), cpu.bus.Read(0xFFFE))
+	cpu.push(uint8(cpu.PC >> 8))
+	cpu.push(uint8(cpu.PC & 0x00FF))
+	cpu.php(0, false)
+	cpu.sei(0, false)
+	cpu.PC = uint16(cpu.bus.Read(0xFFFF))<<8 + uint16(cpu.bus.Read(0xFFFE))
 }
 
-func (cpu *CPU) nop(opeland uint16) {
+func (cpu *CPU) nop(opeland uint16, isaddr bool) {
 }

@@ -1,9 +1,13 @@
 package cpu
 
 import (
-	"log"
+	"fmt"
+	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
+	"github.com/yaito6502/NESEmulator/internal/cpudebug"
+
+	"github.com/yaito6502/NESEmulator/pkg"
 )
 
 type Flags struct {
@@ -18,10 +22,11 @@ type Flags struct {
 }
 
 type CPU struct {
-	iTable []func(uint16)
-	aTable []func() uint16
+	iTable []func(uint16, bool)
+	aTable []func() (uint16, bool)
 	cycles []uint8
 	bus    *cpubus.CPUBUS
+	info   *cpudebug.DebugInfo
 	A      uint8
 	X      uint8
 	Y      uint8
@@ -35,7 +40,7 @@ func NewFlags() *Flags {
 	flags.N = false
 	flags.V = false
 	flags.R = true
-	flags.B = true
+	flags.B = false
 	flags.D = false
 	flags.I = true
 	flags.Z = false
@@ -43,34 +48,31 @@ func NewFlags() *Flags {
 	return flags
 }
 
-func NewCPU(bus *cpubus.CPUBUS) *CPU {
+func NewCPU(bus *cpubus.CPUBUS, info *cpudebug.DebugInfo) *CPU {
 	cpu := new(CPU)
 	cpu.iTable = cpu.getInstructionTable()
 	cpu.aTable = cpu.getAddressingModeTable()
 	cpu.cycles = getCyclesTable()
+	cpu.info = info
 	cpu.bus = bus
 	cpu.A = 0x00
 	cpu.X = 0x00
 	cpu.Y = 0x00
-	cpu.S = 0xFF
+	cpu.S = 0xFD
 	cpu.P = *NewFlags()
-	cpu.PC = 0x8000
+	cpu.PC = 0xC000
 	return cpu
 }
 
 func (cpu *CPU) push(data uint8) {
-	address := 0x0100 + uint16(cpu.S)
-	cpu.bus.Write(address, data)
+	cpu.bus.Write(0x0100+uint16(cpu.S), data)
 	cpu.S--
 }
 
-/*
 func (cpu *CPU) pop() uint8 {
 	cpu.S++
-	address := 0x0100 + uint16(cpu.S)
-	return (cpu.bus.Read(address))
+	return cpu.bus.Read(0x0100 + uint16(cpu.S))
 }
-*/
 
 func (cpu *CPU) fetch() byte {
 	data := cpu.bus.Read(cpu.PC)
@@ -78,23 +80,34 @@ func (cpu *CPU) fetch() byte {
 	return data
 }
 
-func (cpu *CPU) storePC(high byte, low byte) {
-	ext_high := uint16(high)
-	ext_low := uint16(low)
-	cpu.PC = ext_high<<8 + ext_low
-}
-
-func (cpu *CPU) fetchPC() (high byte, low byte) {
-	return byte(cpu.PC & 0xFF00), byte(cpu.PC & 0x00FF)
-}
-
 func (cpu *CPU) Run() uint8 {
+	//割込割り込み(nmi, irq, brk)
+	cpu.info.PC = cpu.PC
+
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
-	mode := cpu.aTable[opecode]
-	if inst == nil || mode == nil {
-		log.Fatalf("opecode[%#x] not implement\n", opecode)
+	addressing := cpu.aTable[opecode]
+
+	cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
+	cpu.info.ASMCODE += strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0])
+	cpu.info.A = cpu.A
+	cpu.info.X = cpu.X
+	cpu.info.Y = cpu.Y
+	data := pkg.Btouint8(cpu.P.N) << 7
+	data += pkg.Btouint8(cpu.P.V) << 6
+	data += pkg.Btouint8(cpu.P.R) << 5
+	data += pkg.Btouint8(cpu.P.B) << 4
+	data += pkg.Btouint8(cpu.P.D) << 3
+	data += pkg.Btouint8(cpu.P.I) << 2
+	data += pkg.Btouint8(cpu.P.Z) << 1
+	data += pkg.Btouint8(cpu.P.C)
+	cpu.info.P = data
+	cpu.info.SP = cpu.S
+
+	if inst == nil || addressing == nil {
+		fmt.Printf("opecode[%#x] not implement\n", opecode)
+		return 0
 	}
-	inst(mode())
+	inst(addressing())
 	return cpu.cycles[opecode]
 }
