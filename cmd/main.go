@@ -20,8 +20,8 @@ func main() {
 	//tools.SpriteDump(os.Args[1])
 	cart := cartridge.NewCartridge(os.Args[1])
 	nes := nes.NewNES(cart)
-	Test(nes)
-	//nes.Run()
+	//Test(nes)
+	nes.Run()
 }
 
 func Test(nes *nes.NES) {
@@ -32,6 +32,8 @@ func Test(nes *nes.NES) {
 
 	fileScanner := bufio.NewScanner(file)
 	steps := 1
+	nes.CPU.P.B = false
+	nes.CPU.PC = 0xC000
 	for fileScanner.Scan() {
 		nes.CPU.Run()
 		fmt.Println(fileScanner.Text())

@@ -47,7 +47,7 @@ func (ppu *PPU) ReadRegister(address uint16) uint8 {
 	case address == 0x2007:
 		return ppu.bus.Read(ppu.reg.ppuAddr)
 	default:
-		log.Fatalf("cannnot read register on address %v", address)
+		log.Fatalf("cannot read register on address %X", address)
 		return 0
 	}
 }

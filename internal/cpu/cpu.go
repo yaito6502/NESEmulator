@@ -1,7 +1,7 @@
 package cpu
 
 import (
-	"fmt"
+	"log"
 	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
@@ -40,7 +40,7 @@ func NewFlags() *Flags {
 	flags.N = false
 	flags.V = false
 	flags.R = true
-	flags.B = false
+	flags.B = true
 	flags.D = false
 	flags.I = true
 	flags.Z = false
@@ -60,7 +60,7 @@ func NewCPU(bus *cpubus.CPUBUS, info *cpudebug.DebugInfo) *CPU {
 	cpu.Y = 0x00
 	cpu.S = 0xFD
 	cpu.P = *NewFlags()
-	cpu.PC = 0xC000
+	cpu.PC = 0x8000
 	return cpu
 }
 
@@ -105,8 +105,7 @@ func (cpu *CPU) Run() uint8 {
 	cpu.info.SP = cpu.S
 
 	if inst == nil || addressing == nil {
-		fmt.Printf("opecode[%#x] not implement\n", opecode)
-		return 0
+		log.Fatalf("opecode[0x%s] not implement\n", pkg.ConvUpperHexString(uint64(opecode)))
 	}
 	inst(addressing())
 	return cpu.cycles[opecode]

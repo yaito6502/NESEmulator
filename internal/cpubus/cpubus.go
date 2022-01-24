@@ -9,7 +9,7 @@ import (
 
 type CPUBUS struct {
 	wram       *mem.RAM
-	wramMirror *mem.RAM
+	wramMirror [0x1801]byte
 	ppu        *ppu.PPU
 	apuIOPad   [0x0020]byte
 	extRom     [0x1FE0]byte
@@ -20,7 +20,6 @@ type CPUBUS struct {
 func NewCPUBUS(wram *mem.RAM, ppu *ppu.PPU, prgRom *mem.ROM) *CPUBUS {
 	bus := new(CPUBUS)
 	bus.wram = wram
-	bus.wramMirror = wram
 	bus.ppu = ppu
 	bus.prgRom = prgRom
 	return bus
@@ -47,7 +46,7 @@ func (bus *CPUBUS) Read(address uint16) byte {
 	case address <= 0x07FF:
 		return bus.wram.Read(address)
 	case address <= 0x1FFF:
-		return bus.wramMirror.Read(address - 0x0800)
+		return bus.wramMirror[address-0x0800]
 	case address <= 0x2007:
 		return bus.ppu.ReadRegister(address)
 	case address <= 0x3FFF:
@@ -73,7 +72,7 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 	case address <= 0x07FF:
 		bus.wram.Write(address, data)
 	case address <= 0x1FFF:
-		bus.wramMirror.Write(address-0x0800, data)
+		bus.wramMirror[address-0x0800] = data
 	case address <= 0x2007:
 		bus.ppu.WriteRegister(address, data)
 	case address <= 0x3FFF:
@@ -81,13 +80,13 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 	case address <= 0x401F:
 		bus.apuIOPad[address-0x4000] = data
 	case address <= 0x5FFF:
-
+		break
 	case address <= 0x7FFF:
 		bus.extRam[address-0x6000] = data
 	case address <= 0xBFFF:
-
+		break
 	case address <= 0xFFFF:
-
+		break
 	default:
 		log.Fatalf("address out of range %v", address)
 	}
