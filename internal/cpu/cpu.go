@@ -1,7 +1,7 @@
 package cpu
 
 import (
-	"log"
+	"fmt"
 	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
@@ -22,8 +22,8 @@ type Flags struct {
 }
 
 type CPU struct {
-	iTable []func(uint16)
-	aTable []func() uint16
+	iTable []func(uint16, bool)
+	aTable []func() (uint16, bool)
 	cycles []uint8
 	bus    *cpubus.CPUBUS
 	info   *cpudebug.DebugInfo
@@ -87,9 +87,6 @@ func (cpu *CPU) Run() uint8 {
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
 	addressing := cpu.aTable[opecode]
-	if inst == nil || addressing == nil {
-		log.Fatalf("opecode[%#x] not implement\n", opecode)
-	}
 
 	cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
 	cpu.info.ASMCODE += strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0])
@@ -107,6 +104,10 @@ func (cpu *CPU) Run() uint8 {
 	cpu.info.P = data
 	cpu.info.SP = cpu.S
 
+	if inst == nil || addressing == nil {
+		fmt.Printf("opecode[%#x] not implement\n", opecode)
+		return 0
+	}
 	inst(addressing())
 	return cpu.cycles[opecode]
 }
