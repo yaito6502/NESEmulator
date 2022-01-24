@@ -1,7 +1,7 @@
 package cpu
 
 import (
-	"fmt"
+	"log"
 	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
@@ -105,8 +105,7 @@ func (cpu *CPU) Run() uint8 {
 	cpu.info.SP = cpu.S
 
 	if inst == nil || addressing == nil {
-		fmt.Printf("opecode[%#x] not implement\n", opecode)
-		return 0
+		log.Fatalf("opecode[0x%s] not implement\n", pkg.ConvUpperHexString(uint64(opecode)))
 	}
 	inst(addressing())
 	return cpu.cycles[opecode]

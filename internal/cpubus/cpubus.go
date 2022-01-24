@@ -81,13 +81,13 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 	case address <= 0x401F:
 		bus.apuIOPad[address-0x4000] = data
 	case address <= 0x5FFF:
-
+		break
 	case address <= 0x7FFF:
 		bus.extRam[address-0x6000] = data
 	case address <= 0xBFFF:
-
+		break
 	case address <= 0xFFFF:
-
+		break
 	default:
 		log.Fatalf("address out of range %v", address)
 	}
