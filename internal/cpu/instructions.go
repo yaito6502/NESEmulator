@@ -27,22 +27,22 @@ func getCyclesTable() []uint8 {
 
 func (cpu *CPU) getInstructionTable() []func(uint16, bool) {
 	return []func(uint16, bool){
-		/*0x00*/ cpu.brk, cpu.ora, nil, cpu.slo, cpu.dop, cpu.ora, cpu.asl, cpu.slo, cpu.php, cpu.ora, cpu.asl, nil, cpu.top, cpu.ora, cpu.asl, cpu.slo,
-		/*0x10*/ cpu.bpl, cpu.ora, nil, cpu.slo, cpu.dop, cpu.ora, cpu.asl, cpu.slo, cpu.clc, cpu.ora, cpu.nop, cpu.slo, cpu.top, cpu.ora, cpu.asl, cpu.slo,
-		/*0x20*/ cpu.jsr, cpu.and, nil, cpu.rla, cpu.bit, cpu.and, cpu.rol, cpu.rla, cpu.plp, cpu.and, cpu.rol, nil, cpu.bit, cpu.and, cpu.rol, cpu.rla,
-		/*0x30*/ cpu.bmi, cpu.and, nil, cpu.rla, cpu.dop, cpu.and, cpu.rol, cpu.rla, cpu.sec, cpu.and, cpu.nop, cpu.rla, cpu.top, cpu.and, cpu.rol, cpu.rla,
-		/*0x40*/ cpu.rti, cpu.eor, nil, cpu.sre, cpu.dop, cpu.eor, cpu.lsr, cpu.sre, cpu.pha, cpu.eor, cpu.lsr, nil, cpu.jmp, cpu.eor, cpu.lsr, cpu.sre,
-		/*0x50*/ cpu.bvc, cpu.eor, nil, cpu.sre, cpu.dop, cpu.eor, cpu.lsr, cpu.sre, cpu.cli, cpu.eor, cpu.nop, cpu.sre, cpu.top, cpu.eor, cpu.lsr, cpu.sre,
-		/*0x60*/ cpu.rts, cpu.adc, nil, cpu.rra, cpu.dop, cpu.adc, cpu.ror, cpu.rra, cpu.pla, cpu.adc, cpu.ror, nil, cpu.jmp, cpu.adc, cpu.ror, cpu.rra,
-		/*0x70*/ cpu.bvs, cpu.adc, nil, cpu.rra, cpu.dop, cpu.adc, cpu.ror, cpu.rra, cpu.sei, cpu.adc, cpu.nop, cpu.rra, cpu.top, cpu.adc, cpu.ror, cpu.rra,
+		/*0x00*/ cpu.brk, cpu.ora, cpu.hlt, cpu.slo, cpu.dop, cpu.ora, cpu.asl, cpu.slo, cpu.php, cpu.ora, cpu.asl, nil, cpu.top, cpu.ora, cpu.asl, cpu.slo,
+		/*0x10*/ cpu.bpl, cpu.ora, cpu.hlt, cpu.slo, cpu.dop, cpu.ora, cpu.asl, cpu.slo, cpu.clc, cpu.ora, cpu.nop, cpu.slo, cpu.top, cpu.ora, cpu.asl, cpu.slo,
+		/*0x20*/ cpu.jsr, cpu.and, cpu.hlt, cpu.rla, cpu.bit, cpu.and, cpu.rol, cpu.rla, cpu.plp, cpu.and, cpu.rol, nil, cpu.bit, cpu.and, cpu.rol, cpu.rla,
+		/*0x30*/ cpu.bmi, cpu.and, cpu.hlt, cpu.rla, cpu.dop, cpu.and, cpu.rol, cpu.rla, cpu.sec, cpu.and, cpu.nop, cpu.rla, cpu.top, cpu.and, cpu.rol, cpu.rla,
+		/*0x40*/ cpu.rti, cpu.eor, cpu.hlt, cpu.sre, cpu.dop, cpu.eor, cpu.lsr, cpu.sre, cpu.pha, cpu.eor, cpu.lsr, nil, cpu.jmp, cpu.eor, cpu.lsr, cpu.sre,
+		/*0x50*/ cpu.bvc, cpu.eor, cpu.hlt, cpu.sre, cpu.dop, cpu.eor, cpu.lsr, cpu.sre, cpu.cli, cpu.eor, cpu.nop, cpu.sre, cpu.top, cpu.eor, cpu.lsr, cpu.sre,
+		/*0x60*/ cpu.rts, cpu.adc, cpu.hlt, cpu.rra, cpu.dop, cpu.adc, cpu.ror, cpu.rra, cpu.pla, cpu.adc, cpu.ror, nil, cpu.jmp, cpu.adc, cpu.ror, cpu.rra,
+		/*0x70*/ cpu.bvs, cpu.adc, cpu.hlt, cpu.rra, cpu.dop, cpu.adc, cpu.ror, cpu.rra, cpu.sei, cpu.adc, cpu.nop, cpu.rra, cpu.top, cpu.adc, cpu.ror, cpu.rra,
 		/*0x80*/ cpu.dop, cpu.sta, cpu.dop, cpu.sax, cpu.sty, cpu.sta, cpu.stx, cpu.sax, cpu.dey, cpu.dop, cpu.txa, nil, cpu.sty, cpu.sta, cpu.stx, cpu.sax,
-		/*0x90*/ cpu.bcc, cpu.sta, nil, nil, cpu.sty, cpu.sta, cpu.stx, cpu.sax, cpu.tya, cpu.sta, cpu.txs, nil, nil, cpu.sta, nil, nil,
+		/*0x90*/ cpu.bcc, cpu.sta, cpu.hlt, nil, cpu.sty, cpu.sta, cpu.stx, cpu.sax, cpu.tya, cpu.sta, cpu.txs, nil, nil, cpu.sta, nil, nil,
 		/*0xA0*/ cpu.ldy, cpu.lda, cpu.ldx, cpu.lax, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax, cpu.tay, cpu.lda, cpu.tax, nil, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax,
-		/*0xB0*/ cpu.bcs, cpu.lda, nil, cpu.lax, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax, cpu.clv, cpu.lda, cpu.tsx, nil, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax,
+		/*0xB0*/ cpu.bcs, cpu.lda, cpu.hlt, cpu.lax, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax, cpu.clv, cpu.lda, cpu.tsx, nil, cpu.ldy, cpu.lda, cpu.ldx, cpu.lax,
 		/*0xC0*/ cpu.cpy, cpu.cmp, cpu.dop, cpu.dcp, cpu.cpy, cpu.cmp, cpu.dec, cpu.dcp, cpu.iny, cpu.cmp, cpu.dex, nil, cpu.cpy, cpu.cmp, cpu.dec, cpu.dcp,
-		/*0xD0*/ cpu.bne, cpu.cmp, nil, cpu.dcp, cpu.dop, cpu.cmp, cpu.dec, cpu.dcp, cpu.cld, cpu.cmp, cpu.nop, cpu.dcp, cpu.top, cpu.cmp, cpu.dec, cpu.dcp,
+		/*0xD0*/ cpu.bne, cpu.cmp, cpu.hlt, cpu.dcp, cpu.dop, cpu.cmp, cpu.dec, cpu.dcp, cpu.cld, cpu.cmp, cpu.nop, cpu.dcp, cpu.top, cpu.cmp, cpu.dec, cpu.dcp,
 		/*0xE0*/ cpu.cpx, cpu.sbc, cpu.dop, cpu.isb, cpu.cpx, cpu.sbc, cpu.inc, cpu.isb, cpu.inx, cpu.sbc, cpu.nop, cpu.sbc, cpu.cpx, cpu.sbc, cpu.inc, cpu.isb,
-		/*0xF0*/ cpu.beq, cpu.sbc, nil, cpu.isb, cpu.dop, cpu.sbc, cpu.inc, cpu.isb, cpu.sed, cpu.sbc, cpu.nop, cpu.isb, cpu.top, cpu.sbc, cpu.inc, cpu.isb,
+		/*0xF0*/ cpu.beq, cpu.sbc, cpu.hlt, cpu.isb, cpu.dop, cpu.sbc, cpu.inc, cpu.isb, cpu.sed, cpu.sbc, cpu.nop, cpu.isb, cpu.top, cpu.sbc, cpu.inc, cpu.isb,
 	}
 }
 
@@ -548,4 +548,8 @@ func (cpu *CPU) sre(opeland uint16, isaddr bool) {
 func (cpu *CPU) rra(opeland uint16, isaddr bool) {
 	cpu.ror(opeland, isaddr)
 	cpu.adc(opeland, isaddr)
+}
+
+func (cpu *CPU) hlt(opeland uint16, isaddr bool) {
+	cpu.reset()
 }
