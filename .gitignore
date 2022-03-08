@@ -1,6 +1,5 @@
-*.nes
-sample*
-/.vscode
-go.mod
-go.sum
-test/
+*
+
+!*.go
+!*.md
+!.gitignore
