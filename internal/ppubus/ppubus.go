@@ -46,7 +46,7 @@ func (bus *PPUBUS) Read(address uint16) uint8 {
 	case address <= 0x3FFF:
 		return bus.vram.Read(address - 0x2000)
 	default:
-		log.Fatalf("address out of range %v", address)
+		log.Fatalf("address out of range %x", address)
 		return 0
 	}
 }
@@ -58,6 +58,6 @@ func (bus *PPUBUS) Write(address uint16, data uint8) {
 	case address <= 0x3FFF:
 		bus.vram.Write(address-0x2000, data)
 	default:
-		log.Fatalf("address out of range %v", address)
+		log.Fatalf("address out of range %x", address)
 	}
 }

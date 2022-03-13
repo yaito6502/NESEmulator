@@ -47,8 +47,6 @@ func (bus *CPUBUS) Read(address uint16) byte {
 		return bus.wram.Read(address)
 	case address <= 0x1FFF:
 		return bus.wramMirror[address-0x0800]
-	case address <= 0x2007:
-		return bus.ppu.ReadRegister(address)
 	case address <= 0x3FFF:
 		return bus.ppu.ReadRegister((address-0x2000)%8 + 0x2000)
 	case address <= 0x401F:
@@ -62,7 +60,7 @@ func (bus *CPUBUS) Read(address uint16) byte {
 	case address <= 0xFFFF:
 		return bus.prgRom.Read(address - 0xC000)
 	default:
-		log.Fatalf("address out of range %v", address)
+		log.Fatalf("address out of range %x", address)
 		return 0
 	}
 }
@@ -73,8 +71,6 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 		bus.wram.Write(address, data)
 	case address <= 0x1FFF:
 		bus.wramMirror[address-0x0800] = data
-	case address <= 0x2007:
-		bus.ppu.WriteRegister(address, data)
 	case address <= 0x3FFF:
 		bus.ppu.WriteRegister((address-0x2008)%8+0x2000, data)
 	case address <= 0x401F:
@@ -88,6 +84,6 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 	case address <= 0xFFFF:
 		break
 	default:
-		log.Fatalf("address out of range %v", address)
+		log.Fatalf("address out of range %x", address)
 	}
 }

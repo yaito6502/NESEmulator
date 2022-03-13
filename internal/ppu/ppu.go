@@ -8,11 +8,34 @@ import (
 
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
+	"github.com/yaito6502/NESEmulator/pkg"
 )
 
+type PPUCtrl struct {
+	bits                       byte
+	nameTableAddr              uint16
+	vramAddrInc                uint16
+	spritePatternTableAddr     uint16
+	backgroundPatternTableAddr uint16
+	spriteSize                 uint8
+	vblankNMI                  bool
+}
+
+type PPUMASK struct {
+	bits           byte
+	greyScale      bool
+	backgroundMask bool
+	spriteMask     bool
+	showBackground bool
+	showSprite     bool
+	emphasizeRed   bool
+	emphasizeGreen bool
+	emphasizeBlue  bool
+}
+
 type PPURegister struct {
-	ppuCtrl   byte
-	ppuMask   byte
+	ppuCtrl   PPUCtrl
+	ppuMask   PPUMASK
 	ppuStatus byte
 	oamAddr   byte
 	oamData   byte
@@ -22,18 +45,23 @@ type PPURegister struct {
 }
 
 type PPU struct {
-	reg   PPURegister
-	clock uint16
-	line  uint16
-	image *ebiten.Image
-	bus   *ppubus.PPUBUS
-	info  *cpudebug.DebugInfo
+	reg        PPURegister
+	clock      uint16
+	line       uint16
+	bus        *ppubus.PPUBUS
+	background *ebiten.Image
+	info       *cpudebug.DebugInfo
 }
+
+const (
+	WIDTH  = 256
+	HEIGHT = 240
+)
 
 func NewPPU(bus *ppubus.PPUBUS, info *cpudebug.DebugInfo) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
-	ppu.image = ebiten.NewImage(256, 240)
+	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
 	return ppu
 }
@@ -45,7 +73,9 @@ func (ppu *PPU) ReadRegister(address uint16) uint8 {
 	case address == 0x2004:
 		return ppu.reg.oamData
 	case address == 0x2007:
-		return ppu.bus.Read(ppu.reg.ppuAddr)
+		data := ppu.reg.ppuData
+		ppu.reg.ppuData = ppu.bus.Read(ppu.reg.ppuAddr)
+		return data
 	default:
 		log.Fatalf("cannot read register on address %X", address)
 		return 0
@@ -55,27 +85,73 @@ func (ppu *PPU) ReadRegister(address uint16) uint8 {
 func (ppu *PPU) WriteRegister(address uint16, data uint8) {
 	switch {
 	case address == 0x2000:
-		ppu.reg.ppuCtrl = data
+		ppu.reg.ppuCtrl.WritePPUCTRL(data)
 	case address == 0x2001:
-		ppu.reg.ppuMask = data
+		ppu.reg.ppuMask.WritePPUMASK(data)
 	case address == 0x2003:
 		ppu.reg.oamAddr = data
 	case address == 0x2004:
-		ppu.reg.oamData = data
+		ppu.reg.WriteOAMDATA(data)
 	case address == 0x2005:
 		ppu.reg.ppuScroll = data
 	case address == 0x2006:
-		ppu.WritePPUADDR(data)
+		ppu.reg.WritePPUADDR(data)
 	case address == 0x2007:
-		ppu.bus.Write(ppu.reg.ppuAddr, data)
-		ppu.reg.ppuAddr++
+		ppu.WritePPUDATA(data)
 	default:
 		log.Fatalf("cannnot write register on address %v", address)
 	}
 }
 
-func (ppu *PPU) WritePPUADDR(data uint8) {
-	ppu.reg.ppuAddr = ppu.reg.ppuAddr<<8 + uint16(data)
+func (reg *PPUCtrl) WritePPUCTRL(data uint8) {
+	reg.bits = data
+	//(0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+	reg.nameTableAddr = 0x2000 + uint16(reg.bits&0x03)*0x0400
+	if reg.bits&0x04 == 0 {
+		reg.vramAddrInc += 1
+	} else {
+		reg.vramAddrInc += 32
+	}
+	if pkg.Uint8tob(reg.bits & 0x08) {
+		reg.spritePatternTableAddr = 0x1000
+	} else {
+		reg.spritePatternTableAddr = 0x0000
+	}
+	if pkg.Uint8tob(reg.bits & 0x10) {
+		reg.backgroundPatternTableAddr = 0x1000
+	} else {
+		reg.backgroundPatternTableAddr = 0x0000
+	}
+	reg.spriteSize = 8 + (reg.bits&0x20)*8
+	reg.vblankNMI = (reg.bits & 0x80) == 1
+}
+
+func (reg *PPUMASK) WritePPUMASK(data uint8) {
+	reg.bits = data
+	reg.greyScale = pkg.Uint8tob(reg.bits & 0x01)
+	reg.backgroundMask = pkg.Uint8tob(reg.bits & 0x02)
+	reg.spriteMask = pkg.Uint8tob(reg.bits & 0x04)
+	reg.showBackground = pkg.Uint8tob(reg.bits & 0x08)
+	reg.showSprite = pkg.Uint8tob(reg.bits & 0x10)
+	reg.emphasizeRed = pkg.Uint8tob(reg.bits & 0x20)
+	reg.emphasizeGreen = pkg.Uint8tob(reg.bits & 0x40)
+	reg.emphasizeBlue = pkg.Uint8tob(reg.bits & 0x80)
+}
+
+func (reg *PPURegister) WriteOAMDATA(data uint8) {
+	reg.oamData = data
+	//oam.Write(reg.oamAddr, reg.oamData)
+	reg.oamAddr++
+}
+
+func (reg *PPURegister) WritePPUADDR(data uint8) {
+	reg.ppuAddr = reg.ppuAddr<<8 + uint16(data)
+}
+
+func (ppu *PPU) WritePPUDATA(data uint8) {
+	ppu.reg.ppuData = data
+	ppu.bus.Write(ppu.reg.ppuAddr, ppu.reg.ppuData)
+	ppu.reg.ppuAddr += ppu.reg.ppuCtrl.vramAddrInc
 }
 
 func getColorTable() []color.RGBA {
@@ -105,45 +181,60 @@ type Sprite [8][8]byte
 type Tile struct {
 	sprite  *Sprite
 	palette *Palette
-	x       uint16
-	y       uint16
 }
+
+const (
+	TILE_ROW = 30
+	TILE_COL = 32
+)
 
 var colors = getColorTable()
 
 //Sprite -> Palette -> Color
 func (ppu *PPU) getColor(tile *Tile, x uint16, y uint16) color.Color {
 	paletteID := tile.sprite[y][x]
+	if paletteID == 0 {
+		return colors[ppu.bus.Read(0x3F10)]
+	}
 	colorID := tile.palette[paletteID]
 	return colors[colorID]
 }
 
 //Tile -> Pixel
-func (ppu *PPU) fillTileInImage(tile *Tile) {
+func (ppu *PPU) fillTileInImage(tile *Tile, tilex, tiley uint16) {
 	for y := uint16(0); y < 8; y++ {
 		for x := uint16(0); x < 8; x++ {
-			ppu.image.Set(int(tile.x*8+x), int(tile.y*8+y), ppu.getColor(tile, x, y))
+			ppu.background.Set(int(tilex*8+x), int(tiley*8+y), ppu.getColor(tile, x, y))
 		}
 	}
 }
 
 func (ppu *PPU) getSpriteID(tileX, tileY uint16) uint16 {
-	spriteID := ppu.bus.Read(0x2000 + tileY*32 + tileX)
+	//0x2000, 0x2400, 0x2800, 0x3200 NameTable
+	baseAddr := ppu.reg.ppuCtrl.nameTableAddr
+	spriteID := ppu.bus.Read(baseAddr + tileY*TILE_COL + tileX)
 	return uint16(spriteID)
 }
 
 func (ppu *PPU) getPaletteID(tileX, tileY uint16) uint16 {
-	attribute := ppu.bus.Read(0x23C0 + tileY/4*8 + tileX/4)
-	shift := (tileX%4)/2 + (tileY%4)/2*2
-	paletteID := attribute & (0x03 << (6 - shift*2))
+	//0x23C0, 0x27C0, 0x2BC0, 0x2FC0 Attribute Table
+	baseAddr := ppu.reg.ppuCtrl.nameTableAddr + uint16(0x03C0)
+	blockx := tileX / 2
+	blocky := tileY / 2
+	attribute := ppu.bus.Read(baseAddr + blocky/2*8 + blockx/2)
+	offsetx := blockx % 2
+	offsety := blocky % 2
+	shift := offsety * 2 + offsetx
+	paletteID := (attribute >> uint8(shift) * 2) & 0x03
 	return uint16(paletteID)
 }
 
 func (ppu *PPU) NewSprite(spriteID uint16) *Sprite {
 	sprite := new(Sprite)
+	baseAddr := ppu.reg.ppuCtrl.backgroundPatternTableAddr
 	for y := uint16(0); y < 8; y++ {
-		low := ppu.bus.Read(0x0010*spriteID + y)
-		high := ppu.bus.Read(0x0010*spriteID + y + 8)
+		low := ppu.bus.Read(baseAddr + 0x0010*spriteID + y)
+		high := ppu.bus.Read(baseAddr + 0x0010*spriteID + y + 8)
 		for x := 0; x < 8; x++ {
 			if (high & (1 << (8 - x))) != 0 {
 				sprite[y][x] += 2
@@ -158,22 +249,38 @@ func (ppu *PPU) NewSprite(spriteID uint16) *Sprite {
 
 func (ppu *PPU) NewPalette(paletteID uint16) *Palette {
 	palette := new(Palette)
+	baseAddr := uint16(0x3F00)
 	for i := uint16(0); i < 4; i++ {
-		palette[i] = ppu.bus.Read(0x3F00 + paletteID*4 + i)
+		palette[i] = ppu.bus.Read(baseAddr + paletteID*4 + i)
 	}
 	return palette
 }
 
-func (ppu *PPU) fillLineInImage() {
+func (ppu *PPU) PlaceTile(x, y uint16) {
 	tile := new(Tile)
-	tile.y = ppu.line / 8
-	for tile.x = 0; tile.x < 32; tile.x++ {
-		spriteID := ppu.getSpriteID(tile.x, tile.y)
-		paletteID := ppu.getPaletteID(tile.x, tile.y)
-		tile.sprite = ppu.NewSprite(spriteID)
-		tile.palette = ppu.NewPalette(paletteID)
-		ppu.fillTileInImage(tile)
+	spriteID := ppu.getSpriteID(x, y)
+	paletteID := ppu.getPaletteID(x, y)
+	tile.sprite = ppu.NewSprite(spriteID)
+	tile.palette = ppu.NewPalette(paletteID)
+	ppu.fillTileInImage(tile, x, y)
+}
+
+func (ppu *PPU) fillBackGround() {
+	tiley := ppu.line / 8
+	for tilex := uint16(0); tilex < TILE_COL; tilex++ {
+		ppu.PlaceTile(tilex, tiley)
 	}
+}
+
+func (ppu *PPU) setVBlank() {
+	ppu.reg.ppuStatus |= (1 << 7)
+	/*if ppu.reg.ppuCtrl.vblankNMI {
+		NMI()
+	}*/
+}
+
+func (ppu *PPU) unsetVBlank() {
+	ppu.reg.ppuStatus ^= (1 << 7)
 }
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
@@ -181,6 +288,9 @@ func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	ppu.info.PPUY = ppu.line
 	ppu.clock += cycles
 
+	if ppu.line == 0 {
+		ppu.background.Clear()
+	}
 	//ppu.clock[0 ~ 255] -> Draw Display
 	//ppu.clock[256 ~ 340] -> Hblank
 	for ; ppu.clock >= 341; ppu.clock -= 341 {
@@ -188,15 +298,16 @@ func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	}
 	//ppu.lines[0 ~ 239] -> Draw Display
 	//ppu.lines[240 ~ 261] -> Vblank
-	if ppu.line%8 == 0 && ppu.line < 240 {
-		ppu.fillLineInImage()
+	if ppu.line%8 == 0 && ppu.line <= 239 {
+		ppu.fillBackGround()
+	}
+	if ppu.line >= 240 && ppu.line <= 261 {
+		ppu.setVBlank()
 	}
 	if ppu.line >= 262 {
+		ppu.unsetVBlank()
 		ppu.line = 0
-		ppu.image.Clear()
-	}
-	if ppu.line >= 240 {
-		return ppu.image
+		return ppu.background
 	}
 	return nil
 }
