@@ -115,9 +115,9 @@ func (reg *PPUCtrl) WritePPUCTRL(data uint8) {
 	//(0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
 	reg.nameTableAddr = 0x2000 + uint16(reg.bits&0x03)*0x0400
 	if pkg.Uint8tob(reg.bits & 0x04) {
-		reg.vramAddrInc += 32
+		reg.vramAddrInc = 0x20
 	} else {
-		reg.vramAddrInc += 1
+		reg.vramAddrInc = 0x01
 	}
 	if pkg.Uint8tob(reg.bits & 0x08) {
 		reg.spritePatternTableAddr = 0x1000
@@ -200,9 +200,6 @@ var colors = getColorTable()
 //Sprite -> Palette -> Color
 func (ppu *PPU) getColor(tile *Tile, x uint16, y uint16) color.Color {
 	paletteID := tile.sprite[y][x]
-	if paletteID == 0 {
-		return colors[ppu.bus.Read(0x3F10)]
-	}
 	colorID := tile.palette[paletteID]
 	return colors[colorID]
 }
