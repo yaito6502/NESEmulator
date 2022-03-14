@@ -9,7 +9,7 @@ import (
 
 type CPUBUS struct {
 	wram       *mem.RAM
-	wramMirror [0x1801]byte
+	wramMirror [0x1800]byte
 	ppu        *ppu.PPU
 	apuIOPad   [0x0020]byte
 	extRom     [0x1FE0]byte

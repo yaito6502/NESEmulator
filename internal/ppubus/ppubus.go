@@ -43,6 +43,10 @@ func (bus *PPUBUS) Read(address uint16) uint8 {
 	switch {
 	case address <= 0x1FFF:
 		return bus.patternTable.Read(address)
+	case address == 0x3F04 || address == 0x3F08 || address == 0x0C:
+		return bus.vram.Read(0x3F00 - 0x2000)
+	case address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C:
+		return bus.vram.Read(address - 0x2010)
 	case address <= 0x3FFF:
 		return bus.vram.Read(address - 0x2000)
 	default:
@@ -55,6 +59,10 @@ func (bus *PPUBUS) Write(address uint16, data uint8) {
 	switch {
 	case address <= 0x1FFF:
 
+	case address == 0x3F04 || address == 0x3F08 || address == 0x0C:
+		bus.vram.Write(0x3F00 - 0x2000, data)
+	case address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C:
+		bus.vram.Write(address - 0x2010, data)
 	case address <= 0x3FFF:
 		bus.vram.Write(address-0x2000, data)
 	default:
