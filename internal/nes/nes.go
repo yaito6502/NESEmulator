@@ -60,10 +60,10 @@ func (nes *NES) Update() error {
 	nes.image = nil
 	for nes.image == nil {
 		cycle := nes.CPU.Run()
-		nes.image = nes.PPU.Run(uint16(cycle)*3)
+		nes.image = nes.PPU.Run(uint16(cycle) * 3)
 		nes.cycles += uint64(cycle)
-		nes.Info.CYCLE = nes.cycles
-		nes.Info.Print()
+		//nes.Info.CYCLE = nes.cycles
+		//nes.Info.Print()
 	}
 	return nil
 }

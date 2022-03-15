@@ -64,6 +64,9 @@ func (bus *PPUBUS) Write(address uint16, data uint8) {
 	case address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C:
 		bus.vram.Write(address - 0x2010, data)
 	case address <= 0x3FFF:
+		if address >= 0x2800 && address <= 0x3BFF || address >= 0x0C00 && address <= 0x0FFF {
+			address -= 0x0800
+		}
 		bus.vram.Write(address-0x2000, data)
 	default:
 		log.Fatalf("address out of range %x", address)

@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"log"
-	"strings"
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
@@ -89,12 +88,12 @@ func (cpu *CPU) Run() uint8 {
 		cpu.nmi()
 		cpu.inter.UnSetNMI()
 	}
-	cpu.info.PC = cpu.PC
+	//cpu.info.PC = cpu.PC
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
 	addressing := cpu.aTable[opecode]
 
-	cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
+	/*cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
 	cpu.info.ASMCODE += strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0])
 	cpu.info.A = cpu.A
 	cpu.info.X = cpu.X
@@ -108,7 +107,7 @@ func (cpu *CPU) Run() uint8 {
 	data += pkg.Btouint8(cpu.P.Z) << 1
 	data += pkg.Btouint8(cpu.P.C)
 	cpu.info.P = data
-	cpu.info.SP = cpu.S
+	cpu.info.SP = cpu.S*/
 
 	if inst == nil || addressing == nil {
 		log.Fatalf("opecode[0x%s] not implement\n", pkg.ConvUpperHexString(uint64(opecode)))
