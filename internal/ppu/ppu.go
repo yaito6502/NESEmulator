@@ -6,6 +6,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
+	"github.com/yaito6502/NESEmulator/internal/interrupts"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 	"github.com/yaito6502/NESEmulator/pkg"
 )
@@ -48,6 +49,7 @@ type PPU struct {
 	clock      uint16
 	line       uint16
 	bus        *ppubus.PPUBUS
+	inter      *interrupts.Interrupts
 	background *ebiten.Image
 	info       *cpudebug.DebugInfo
 }
@@ -57,9 +59,10 @@ const (
 	HEIGHT = 240
 )
 
-func NewPPU(bus *ppubus.PPUBUS, info *cpudebug.DebugInfo) *PPU {
+func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, info *cpudebug.DebugInfo) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
+	ppu.inter = inter
 	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
 	return ppu
@@ -68,6 +71,7 @@ func NewPPU(bus *ppubus.PPUBUS, info *cpudebug.DebugInfo) *PPU {
 func (ppu *PPU) ReadRegister(address uint16) uint8 {
 	switch {
 	case address == 0x2002:
+		ppu.unsetVBlank()
 		return ppu.reg.ppuStatus
 	case address == 0x2004:
 		return ppu.reg.oamData
@@ -287,13 +291,14 @@ func (ppu *PPU) fillBackGround() {
 
 func (ppu *PPU) setVBlank() {
 	ppu.reg.ppuStatus |= (1 << 7)
-	/*if ppu.reg.ppuCtrl.vblankNMI {
-		cpu.NMI()
-	}*/
+	if ppu.reg.ppuCtrl.vblankNMI {
+		ppu.inter.SetNMI()
+	}
 }
 
 func (ppu *PPU) unsetVBlank() {
 	ppu.reg.ppuStatus ^= (1 << 7)
+	ppu.inter.UnSetNMI()
 }
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
@@ -315,7 +320,7 @@ func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	if ppu.line%8 == 0 && ppu.line <= 240 {
 		ppu.fillBackGround()
 	}
-	if ppu.line >= 241 && ppu.line <= 261 {
+	if ppu.line == 241 {
 		ppu.setVBlank()
 	}
 	if ppu.line == 262 {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaito6502/NESEmulator/internal/cpubus"
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
+	"github.com/yaito6502/NESEmulator/internal/interrupts"
 
 	"github.com/yaito6502/NESEmulator/pkg"
 )
@@ -26,6 +27,7 @@ type CPU struct {
 	aTable []func() (uint16, bool)
 	cycles []uint8
 	bus    *cpubus.CPUBUS
+	inter  *interrupts.Interrupts
 	info   *cpudebug.DebugInfo
 	A      uint8
 	X      uint8
@@ -48,11 +50,12 @@ func NewFlags() *Flags {
 	return flags
 }
 
-func NewCPU(bus *cpubus.CPUBUS, info *cpudebug.DebugInfo) *CPU {
+func NewCPU(bus *cpubus.CPUBUS, inter *interrupts.Interrupts, info *cpudebug.DebugInfo) *CPU {
 	cpu := new(CPU)
 	cpu.iTable = cpu.getInstructionTable()
 	cpu.aTable = cpu.getAddressingModeTable()
 	cpu.cycles = getCyclesTable()
+	cpu.inter = inter
 	cpu.info = info
 	cpu.bus = bus
 	cpu.A = 0x00
@@ -61,6 +64,7 @@ func NewCPU(bus *cpubus.CPUBUS, info *cpudebug.DebugInfo) *CPU {
 	cpu.S = 0xFD
 	cpu.P = *NewFlags()
 	cpu.PC = 0x8000
+	cpu.reset()
 	return cpu
 }
 
@@ -81,9 +85,11 @@ func (cpu *CPU) fetch() byte {
 }
 
 func (cpu *CPU) Run() uint8 {
-	//割込割り込み(nmi, irq, brk)
+	if cpu.inter.IsNMI() {
+		cpu.nmi()
+		cpu.inter.UnSetNMI()
+	}
 	cpu.info.PC = cpu.PC
-
 	opecode := cpu.fetch()
 	inst := cpu.iTable[opecode]
 	addressing := cpu.aTable[opecode]
