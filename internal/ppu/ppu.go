@@ -270,10 +270,10 @@ func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
 		low := ppu.bus.Read(baseAddr + 0x0010*spriteID + y)
 		high := ppu.bus.Read(baseAddr + 0x0010*spriteID + y + 8)
 		for x := 0; x < 8; x++ {
-			if (high & (1 << (8 - x))) != 0 {
+			if (high & (1 << (7 - x))) != 0 {
 				sprite[y][x] += 2
 			}
-			if (low & (1 << (8 - x))) != 0 {
+			if (low & (1 << (7 - x))) != 0 {
 				sprite[y][x] += 1
 			}
 		}
