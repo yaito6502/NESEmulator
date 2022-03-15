@@ -93,6 +93,7 @@ func (cpu *CPU) Run() uint8 {
 	inst := cpu.iTable[opecode]
 	addressing := cpu.aTable[opecode]
 
+	//fmt.Println(strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0]))
 	/*cpu.info.MACHINECODE += pkg.ConvUpperHexString(uint64(opecode))
 	cpu.info.ASMCODE += strings.ToUpper(strings.Split(pkg.GetFuncName(inst), "-")[0])
 	cpu.info.A = cpu.A

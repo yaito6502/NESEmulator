@@ -7,6 +7,7 @@ import (
 
 	"github.com/yaito6502/NESEmulator/internal/cpudebug"
 	"github.com/yaito6502/NESEmulator/internal/interrupts"
+	"github.com/yaito6502/NESEmulator/internal/mem"
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 	"github.com/yaito6502/NESEmulator/pkg"
 )
@@ -52,6 +53,7 @@ type PPU struct {
 	inter      *interrupts.Interrupts
 	background *ebiten.Image
 	info       *cpudebug.DebugInfo
+	oam        mem.RAM
 }
 
 const (
@@ -65,6 +67,7 @@ func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, info *cpudebug.Deb
 	ppu.inter = inter
 	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
+	ppu.oam = mem.NewRAM(0x0100)
 	return ppu
 }
 
@@ -102,7 +105,7 @@ func (ppu *PPU) WriteRegister(address uint16, data uint8) {
 	case address == 0x2003:
 		ppu.reg.oamAddr = data
 	case address == 0x2004:
-		ppu.reg.WriteOAMDATA(data)
+		ppu.WriteOAMDATA(data)
 	case address == 0x2005:
 		ppu.reg.ppuScroll = data
 	case address == 0x2006:
@@ -133,8 +136,21 @@ func (reg *PPUCtrl) WritePPUCTRL(data uint8) {
 	} else {
 		reg.backgroundPatternTableAddr = 0x0000
 	}
-	reg.spriteSize = 8 + (reg.bits&0x20)*8
-	reg.vblankNMI = (reg.bits & 0x80) == 1
+	if pkg.Uint8tob(reg.bits & 0x20) {
+		reg.spriteSize = 0x10
+	} else {
+		reg.spriteSize = 0x08
+	}
+	if pkg.Uint8tob(reg.bits & 0x20) {
+		reg.spriteSize = 0x10
+	} else {
+		reg.spriteSize = 0x08
+	}
+	if pkg.Uint8tob(reg.bits & 0x80) {
+		reg.vblankNMI = true
+	} else {
+		reg.vblankNMI = false
+	}
 }
 
 func (reg *PPUMASK) WritePPUMASK(data uint8) {
@@ -149,10 +165,12 @@ func (reg *PPUMASK) WritePPUMASK(data uint8) {
 	reg.emphasizeBlue = pkg.Uint8tob(reg.bits & 0x80)
 }
 
-func (reg *PPURegister) WriteOAMDATA(data uint8) {
-	reg.oamData = data
-	//oam.Write(reg.oamAddr, reg.oamData)
-	reg.oamAddr++
+func (ppu *PPU) WriteOAMDATA(data uint8) {
+	ppu.reg.oamData = data
+	ppu.oam.Write(uint16(ppu.reg.oamAddr), ppu.reg.oamData)
+	if !ppu.inter.IsNMI() {
+		ppu.reg.oamAddr++
+	}
 }
 
 func (reg *PPURegister) WritePPUADDR(data uint8) {
@@ -246,7 +264,6 @@ func (ppu *PPU) getPaletteID(tileX, tileY uint16) uint16 {
 	return uint16(paletteID)
 }
 
-//background
 func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
 	sprite := new(Sprite)
 	for y := uint16(0); y < 8; y++ {
@@ -264,7 +281,6 @@ func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
 	return sprite
 }
 
-//background
 func (ppu *PPU) NewPalette(paletteID, baseAddr uint16) *Palette {
 	palette := new(Palette)
 	for i := uint16(0); i < 4; i++ {
@@ -287,7 +303,24 @@ func (ppu *PPU) fillBackGround() {
 	for tilex := uint16(0); tilex < TILE_COL; tilex++ {
 		ppu.PlaceTile(tilex, tiley)
 	}
+	//fmt.Println()
 }
+
+/*
+buildSprites() {
+    const offset = (this.registers[0] & 0x08) ? 0x1000 : 0x0000;
+    for (let i = 0; i < SPRITES_NUMBER; i = (i + 4) | 0) {
+      // INFO: Offset sprite Y position, because First and last 8line is not rendered.
+      const y = this.spriteRam.read(i) - 8;
+      if (y < 0) return;
+      const spriteId = this.spriteRam.read(i + 1);
+      const attr = this.spriteRam.read(i + 2);
+      const x = this.spriteRam.read(i + 3);
+      const sprite = this.buildSprite(spriteId, offset);
+      this.sprites[i / 4] = { sprite, x, y, attr, spriteId };
+    }
+}
+*/
 
 func (ppu *PPU) setVBlank() {
 	ppu.reg.ppuStatus |= (1 << 7)
@@ -302,31 +335,34 @@ func (ppu *PPU) unsetVBlank() {
 }
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
-	ppu.info.PPUX = ppu.clock
-	ppu.info.PPUY = ppu.line
+	//ppu.info.PPUX = ppu.clock
+	//ppu.info.PPUY = ppu.line
 	ppu.clock += cycles
 
 	if ppu.line == 0 {
 		ppu.background.Clear()
+		//ppu.fillSprites()
 	}
-	//ppu.clock[0 ~ 255] -> Draw Display
-	//ppu.clock[256 ~ 340] -> Hblank
 	if ppu.clock >= 341 {
-		ppu.line++
 		ppu.clock -= 341
-	}
-	//ppu.lines[0 ~ 239] -> Draw Display
-	//ppu.lines[240 ~ 261] -> Vblank
-	if ppu.line%8 == 0 && ppu.line <= 240 {
-		ppu.fillBackGround()
-	}
-	if ppu.line == 241 {
-		ppu.setVBlank()
-	}
-	if ppu.line == 262 {
-		ppu.line = 0
-		ppu.unsetVBlank()
-		return ppu.background
+		//Visible scanlines (0-239)
+		if ppu.line%8 == 0 && ppu.line <= 239 {
+			ppu.fillBackGround()
+		}
+		ppu.line++
+		//Post-render scanline (240)
+		//Vertical blanking lines (241-260)
+		if ppu.line == 241 {
+			ppu.setVBlank()
+		}
+		//Pre-render scanline (-1 or 261)
+		if ppu.line == 261 {
+			ppu.unsetVBlank()
+			//fmt.Println()
+			//fmt.Println()
+			ppu.line = 0
+			return ppu.background
+		}
 	}
 	return nil
 }
