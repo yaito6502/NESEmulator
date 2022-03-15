@@ -54,6 +54,7 @@ type PPU struct {
 	background *ebiten.Image
 	info       *cpudebug.DebugInfo
 	oam        mem.RAM
+	palette    *mem.RAM
 }
 
 const (
@@ -61,13 +62,14 @@ const (
 	HEIGHT = 240
 )
 
-func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, info *cpudebug.DebugInfo) *PPU {
+func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, palette *mem.RAM, info *cpudebug.DebugInfo) *PPU {
 	ppu := new(PPU)
 	ppu.bus = bus
 	ppu.inter = inter
 	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
 	ppu.oam = mem.NewRAM(0x0100)
+	ppu.palette = palette
 	return ppu
 }
 
@@ -209,7 +211,6 @@ type Sprite [8][8]byte
 
 type Tile struct {
 	sprite  *Sprite
-	palette *Palette
 }
 
 const (
@@ -220,17 +221,16 @@ const (
 var colors = getColorTable()
 
 //Sprite -> Palette -> Color
-func (ppu *PPU) getColor(tile *Tile, x uint16, y uint16) color.Color {
-	paletteID := tile.sprite[y][x]
-	colorID := tile.palette[paletteID]
+func (ppu *PPU) getColor(tile *Tile, paletteID, x, y uint16) color.Color {
+	colorID := ppu.bus.Read(0x3F00 + paletteID * 4 + uint16(tile.sprite[y][x]))
 	return colors[colorID]
 }
 
 //Tile -> Pixel
-func (ppu *PPU) fillTileInImage(tile *Tile, tilex, tiley uint16) {
+func (ppu *PPU) fillTileInImage(tile *Tile, paletteID, tilex, tiley uint16) {
 	for y := uint16(0); y < 8; y++ {
 		for x := uint16(0); x < 8; x++ {
-			ppu.background.Set(int(tilex*8+x), int(tiley*8+y), ppu.getColor(tile, x, y))
+			ppu.background.Set(int(tilex*8+x), int(tiley*8+y), ppu.getColor(tile, paletteID, x, y))
 		}
 	}
 }
@@ -281,21 +281,12 @@ func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
 	return sprite
 }
 
-func (ppu *PPU) NewPalette(paletteID, baseAddr uint16) *Palette {
-	palette := new(Palette)
-	for i := uint16(0); i < 4; i++ {
-		palette[i] = ppu.bus.Read(baseAddr + paletteID*4 + i)
-	}
-	return palette
-}
-
 func (ppu *PPU) PlaceTile(x, y uint16) {
 	tile := new(Tile)
 	spriteID := ppu.getSpriteID(x, y)
 	paletteID := ppu.getPaletteID(x, y)
 	tile.sprite = ppu.NewSprite(spriteID, ppu.reg.ppuCtrl.backgroundPatternTableAddr)
-	tile.palette = ppu.NewPalette(paletteID, 0x3F00)
-	ppu.fillTileInImage(tile, x, y)
+	ppu.fillTileInImage(tile, paletteID, x, y)
 }
 
 func (ppu *PPU) fillBackGround() {

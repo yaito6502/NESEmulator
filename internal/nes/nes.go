@@ -39,10 +39,11 @@ type NES struct {
 func NewNES(cart *cartridge.Cartridge) *NES {
 	nes := new(NES)
 	nes.WRAM = mem.NewRAM(0x0800)
-	nes.VRAM = mem.NewRAM(0x2000) //0x0800 mirroring
+	nes.VRAM = mem.NewRAM(0x0800)
 	nes.inter = *interrupts.NewInterrupts()
-	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &nes.VRAM)
-	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.inter, &nes.Info)
+	palette := mem.NewRAM(0x0020)
+	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &palette, &nes.VRAM)
+	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.inter, &palette, &nes.Info)
 	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &cart.ProgramRom)
 	nes.CPU = cpu.NewCPU(nes.CPUBUS, &nes.inter, &nes.Info)
 	return nes

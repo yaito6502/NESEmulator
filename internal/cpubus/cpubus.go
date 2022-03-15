@@ -8,13 +8,12 @@ import (
 )
 
 type CPUBUS struct {
-	wram       *mem.RAM
-	wramMirror [0x1800]byte
-	ppu        *ppu.PPU
-	apuIOPad   [0x0020]byte
-	extRom     [0x1FE0]byte
-	extRam     [0x2000]byte
-	prgRom     *mem.ROM
+	wram     *mem.RAM
+	ppu      *ppu.PPU
+	apuIOPad [0x0020]byte
+	extRom   [0x1FE0]byte
+	extRam   [0x2000]byte
+	prgRom   *mem.ROM
 }
 
 func NewCPUBUS(wram *mem.RAM, ppu *ppu.PPU, prgRom *mem.ROM) *CPUBUS {
@@ -43,12 +42,10 @@ Address       | Size   | Use
 
 func (bus *CPUBUS) Read(address uint16) byte {
 	switch {
-	case address <= 0x07FF:
-		return bus.wram.Read(address)
 	case address <= 0x1FFF:
-		return bus.wramMirror[address-0x0800]
+		return bus.wram.Read(address % 0x0800)
 	case address <= 0x3FFF:
-		return bus.ppu.ReadRegister((address-0x2000)%8 + 0x2000)
+		return bus.ppu.ReadRegister(0x2000 + address%8)
 	case address <= 0x401F:
 		return bus.apuIOPad[address-0x4000]
 	case address <= 0x5FFF:
@@ -67,12 +64,10 @@ func (bus *CPUBUS) Read(address uint16) byte {
 
 func (bus *CPUBUS) Write(address uint16, data uint8) {
 	switch {
-	case address <= 0x07FF:
-		bus.wram.Write(address, data)
 	case address <= 0x1FFF:
-		bus.wramMirror[address-0x0800] = data
+		bus.wram.Write(address%0x0800, data)
 	case address <= 0x3FFF:
-		bus.ppu.WriteRegister((address-0x2008)%8+0x2000, data)
+		bus.ppu.WriteRegister(0x2000+address%8, data)
 	case address <= 0x401F:
 		bus.apuIOPad[address-0x4000] = data
 	case address <= 0x5FFF:
