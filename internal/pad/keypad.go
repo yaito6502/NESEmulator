@@ -1,8 +1,6 @@
 package pad
 
 import (
-	"fmt"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/yaito6502/NESEmulator/internal/mem"
 	"github.com/yaito6502/NESEmulator/pkg"
@@ -40,7 +38,6 @@ func (pad *PAD) Read(address uint16) uint8 {
 	if !pad.latch {
 		pad.RAM.Write(address, data<<1+0x01)
 	}
-	fmt.Println(pkg.Btouint8(data&0x80 != 0))
 	return pkg.Btouint8(data&0x80 != 0)
 }
 

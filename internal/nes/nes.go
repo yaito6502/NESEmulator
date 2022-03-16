@@ -30,7 +30,6 @@ type NES struct {
 	CPUBUS *cpubus.CPUBUS
 	PPUBUS *ppubus.PPUBUS
 	//APU *apu
-	//DMA *dma
 	PAD    *pad.PAD
 	inter  interrupts.Interrupts
 	image  *ebiten.Image

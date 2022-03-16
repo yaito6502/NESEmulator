@@ -9,9 +9,9 @@ import (
 )
 
 type CPUBUS struct {
-	wram   *mem.RAM
-	ppu    *ppu.PPU
-	pad    *pad.PAD
+	wram *mem.RAM
+	ppu  *ppu.PPU
+	pad  *pad.PAD
 	apu    [0x0020]byte //apu *apu.APU
 	extRom [0x1FE0]byte
 	extRam [0x2000]byte
@@ -73,6 +73,8 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 		bus.wram.Write(address%0x0800, data)
 	case address <= 0x3FFF:
 		bus.ppu.WriteRegister(0x2000+address%8, data)
+	case address == 0x4014:
+		bus.writeDMA(data)
 	case address == 0x4016:
 		bus.pad.Write(data)
 	case address <= 0x401F:
@@ -87,5 +89,13 @@ func (bus *CPUBUS) Write(address uint16, data uint8) {
 		break
 	default:
 		log.Fatalf("address out of range %x", address)
+	}
+}
+
+func (bus *CPUBUS) writeDMA(data uint8) {
+	address := uint16(data) << 8
+	bus.ppu.WriteRegister(0x2003, 0x00)
+	for i := uint16(0); i < 0x0100; i++ {
+		bus.ppu.WriteOAMDATA(bus.Read(address + i))
 	}
 }
