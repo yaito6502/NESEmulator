@@ -49,11 +49,7 @@ func (bus *PPUBUS) Read(address uint16) uint8 {
 		if address >= 0x3000 {
 			address -= 0x1000
 		}
-		//Horizontal Mirror
-		if address >= 0x2800 && address <= 0x2BFF || address >= 0x2C00 && address <= 0x2FFF {
-			address -= 0x0400
-		}
-		return bus.vram.Read(address - 0x2000)
+		return bus.vram.Read(address%0x0400)
 	case address <= 0x3FFF:
 		if address == 0x3F04 || address == 0x3F08 || address == 0x0C {
 			address = 0x3F00
@@ -76,11 +72,7 @@ func (bus *PPUBUS) Write(address uint16, data uint8) {
 		if address >= 0x3000 {
 			address -= 0x1000
 		}
-		//Horizontal Mirror
-		if address >= 0x2800 && address <= 0x2BFF || address >= 0x2C00 && address <= 0x2FFF {
-			address -= 0x0400
-		}
-		bus.vram.Write(address-0x2000, data)
+		bus.vram.Write(address%0x0400, data)
 	case address <= 0x3FFF:
 		if address == 0x3F04 || address == 0x3F08 || address == 0x0C {
 			address = 0x3F00

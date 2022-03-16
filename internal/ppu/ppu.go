@@ -48,9 +48,10 @@ type PPURegister struct {
 type PPU struct {
 	reg        PPURegister
 	clock      uint16
-	line       uint16
+	scanline   uint16
 	bus        *ppubus.PPUBUS
 	inter      *interrupts.Interrupts
+	sprites    *ebiten.Image
 	background *ebiten.Image
 	info       *cpudebug.DebugInfo
 	oam        mem.RAM
@@ -66,6 +67,7 @@ func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, palette *mem.RAM, 
 	ppu := new(PPU)
 	ppu.bus = bus
 	ppu.inter = inter
+	ppu.sprites = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
 	ppu.oam = mem.NewRAM(0x0100)
@@ -210,7 +212,7 @@ type Palette [4]byte
 type Sprite [8][8]byte
 
 type Tile struct {
-	sprite  *Sprite
+	sprite *Sprite
 }
 
 const (
@@ -222,7 +224,7 @@ var colors = getColorTable()
 
 //Sprite -> Palette -> Color
 func (ppu *PPU) getColor(tile *Tile, paletteID, x, y uint16) color.Color {
-	colorID := ppu.bus.Read(0x3F00 + paletteID * 4 + uint16(tile.sprite[y][x]))
+	colorID := ppu.bus.Read(0x3F00 + paletteID*4 + uint16(tile.sprite[y][x]))
 	return colors[colorID]
 }
 
@@ -234,15 +236,6 @@ func (ppu *PPU) fillTileInImage(tile *Tile, paletteID, tilex, tiley uint16) {
 		}
 	}
 }
-
-/*
-func (ppu *PPU) getBlockID(tileX, tileY uint16) byte {
-	return uint8((tileX%4)/2 + (tileY%4)/2*2)
-}
-
-func (ppu *PPU) getAttribute(tileX, tileY, baseAddr uint16) byte {
-	return ppu.bus.Read(baseAddr + 0x03C0 + tileX/4 + tileY/4*8)
-}*/
 
 func (ppu *PPU) getSpriteID(tileX, tileY uint16) uint16 {
 	//0x2000, 0x2400, 0x2800, 0x3200 NameTable
@@ -266,9 +259,10 @@ func (ppu *PPU) getPaletteID(tileX, tileY uint16) uint16 {
 
 func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
 	sprite := new(Sprite)
+	baseAddr += 0x0010 * spriteID
 	for y := uint16(0); y < 8; y++ {
-		low := ppu.bus.Read(baseAddr + 0x0010*spriteID + y)
-		high := ppu.bus.Read(baseAddr + 0x0010*spriteID + y + 8)
+		low := ppu.bus.Read(baseAddr + y)
+		high := ppu.bus.Read(baseAddr + y + 8)
 		for x := 0; x < 8; x++ {
 			if (high & (1 << (7 - x))) != 0 {
 				sprite[y][x] += 2
@@ -290,28 +284,32 @@ func (ppu *PPU) PlaceTile(x, y uint16) {
 }
 
 func (ppu *PPU) fillBackGround() {
-	tiley := ppu.line / 8
+	tiley := ppu.scanline / 8
 	for tilex := uint16(0); tilex < TILE_COL; tilex++ {
 		ppu.PlaceTile(tilex, tiley)
 	}
-	//fmt.Println()
 }
 
-/*
-buildSprites() {
-    const offset = (this.registers[0] & 0x08) ? 0x1000 : 0x0000;
-    for (let i = 0; i < SPRITES_NUMBER; i = (i + 4) | 0) {
-      // INFO: Offset sprite Y position, because First and last 8line is not rendered.
-      const y = this.spriteRam.read(i) - 8;
-      if (y < 0) return;
-      const spriteId = this.spriteRam.read(i + 1);
-      const attr = this.spriteRam.read(i + 2);
-      const x = this.spriteRam.read(i + 3);
-      const sprite = this.buildSprite(spriteId, offset);
-      this.sprites[i / 4] = { sprite, x, y, attr, spriteId };
-    }
+func (ppu *PPU) PlaceSprite(sx, sy, attribute uint16, spriteID uint8) {
+	tile := new(Tile)
+	tile.sprite = ppu.NewSprite(uint16(spriteID), ppu.reg.ppuCtrl.spritePatternTableAddr)
+	paletteID := uint16(attribute & 0x03)
+	for y := uint16(0); y < 8; y++ {
+		for x := uint16(0); x < 8; x++ {
+			ppu.sprites.Set(int(sx+x), int(sy+y), ppu.getColor(tile, paletteID, x, y))
+		}
+	}
 }
-*/
+
+func (ppu *PPU) fillSprites() {
+	for i := uint16(0); i < 64; i++ {
+		y := uint16(ppu.oam.Read(i * 4)) + 1
+		spriteID := ppu.oam.Read(i*4 + 1)
+		attribute := uint16(ppu.oam.Read(i*4 + 2))
+		x := uint16(ppu.oam.Read(i*4 + 3))
+		ppu.PlaceSprite(x, y, attribute, spriteID)
+	}
+}
 
 func (ppu *PPU) setVBlank() {
 	ppu.reg.ppuStatus |= (1 << 7)
@@ -327,31 +325,32 @@ func (ppu *PPU) unsetVBlank() {
 
 func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 	//ppu.info.PPUX = ppu.clock
-	//ppu.info.PPUY = ppu.line
+	//ppu.info.PPUY = ppu.scanline
 	ppu.clock += cycles
 
-	if ppu.line == 0 {
+	if ppu.scanline == 0 {
 		ppu.background.Clear()
-		//ppu.fillSprites()
+		ppu.fillSprites()
 	}
 	if ppu.clock >= 341 {
 		ppu.clock -= 341
-		//Visible scanlines (0-239)
-		if ppu.line%8 == 0 && ppu.line <= 239 {
+		//Visible scanscanlines (0-239)
+		if ppu.scanline%8 == 0 && ppu.scanline <= 239 {
 			ppu.fillBackGround()
 		}
-		ppu.line++
-		//Post-render scanline (240)
-		//Vertical blanking lines (241-260)
-		if ppu.line == 241 {
+		ppu.scanline++
+		//Post-render scanscanline (240)
+		//Vertical blanking scanlines (241-260)
+		if ppu.scanline == 241 {
 			ppu.setVBlank()
 		}
-		//Pre-render scanline (-1 or 261)
-		if ppu.line == 261 {
+		//Pre-render scanscanline (-1 or 261)
+		if ppu.scanline == 261 {
 			ppu.unsetVBlank()
 			//fmt.Println()
 			//fmt.Println()
-			ppu.line = 0
+			ppu.scanline = 0
+			ppu.background.DrawImage(ppu.sprites, nil)
 			return ppu.background
 		}
 	}
