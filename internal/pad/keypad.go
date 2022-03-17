@@ -36,7 +36,7 @@ func (pad *PAD) SetPressKeys() {
 func (pad *PAD) Read(address uint16) uint8 {
 	data := pad.RAM.Read(address)
 	if !pad.latch {
-		pad.RAM.Write(address, data<<1+0x01)
+		pad.RAM.Write(address, data<<1)
 	}
 	return pkg.Btouint8(data&0x80 != 0)
 }

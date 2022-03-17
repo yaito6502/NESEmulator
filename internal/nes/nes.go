@@ -18,9 +18,11 @@ import (
 	"github.com/yaito6502/NESEmulator/internal/ppubus"
 )
 
-const WIDTH = 256
-const HEIGHT = 240
-const SCALE = 4
+const (
+	WIDTH = 256
+	HEIGHT = 240
+	SCALE = 1
+)
 
 type NES struct {
 	WRAM   mem.RAM
@@ -30,11 +32,12 @@ type NES struct {
 	CPUBUS *cpubus.CPUBUS
 	PPUBUS *ppubus.PPUBUS
 	//APU *apu
-	PAD    *pad.PAD
-	inter  interrupts.Interrupts
-	image  *ebiten.Image
-	Info   cpudebug.DebugInfo
-	cycles uint64
+	PAD        *pad.PAD
+	inter      interrupts.Interrupts
+	background *ebiten.Image
+	sprites    *[ppu.SPRITECOUNT]ppu.Sprite
+	Info       cpudebug.DebugInfo
+	cycles     uint64
 }
 
 func NewNES(cart *cartridge.Cartridge) *NES {
@@ -63,11 +66,12 @@ func (nes *NES) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
 		os.Exit(0)
 	}
-	nes.image = nil
+	nes.background = nil
+	nes.sprites = nil
 	nes.PAD.SetPressKeys()
-	for nes.image == nil {
+	for nes.background == nil || nes.sprites == nil {
 		cycle := nes.CPU.Run()
-		nes.image = nes.PPU.Run(uint16(cycle) * 3)
+		nes.background, nes.sprites = nes.PPU.Run(uint16(cycle) * 3)
 		nes.cycles += uint64(cycle)
 		//nes.Info.CYCLE = nes.cycles
 		//nes.Info.Print()
@@ -76,9 +80,15 @@ func (nes *NES) Update() error {
 }
 
 func (nes *NES) Draw(screen *ebiten.Image) {
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(SCALE, SCALE)
-	screen.DrawImage(nes.image, op)
+	for i := 0; i < ppu.SPRITECOUNT; i++ {
+		spritesop := new(ebiten.DrawImageOptions)
+		spritesop.GeoM.Translate(float64(nes.sprites[i].X), float64(nes.sprites[i].Y))
+		nes.background.DrawImage(nes.sprites[i].Image, spritesop)
+	}
+	screenop := new(ebiten.DrawImageOptions)
+	screenop.GeoM.Scale(SCALE, SCALE)
+	screen.DrawImage(nes.background, screenop)
+
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS:%0.2f TPS:%0.2f", ebiten.CurrentFPS(), ebiten.CurrentTPS()))
 }
 

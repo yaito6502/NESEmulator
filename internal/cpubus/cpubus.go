@@ -9,9 +9,9 @@ import (
 )
 
 type CPUBUS struct {
-	wram *mem.RAM
-	ppu  *ppu.PPU
-	pad  *pad.PAD
+	wram   *mem.RAM
+	ppu    *ppu.PPU
+	pad    *pad.PAD
 	apu    [0x0020]byte //apu *apu.APU
 	extRom [0x1FE0]byte
 	extRam [0x2000]byte

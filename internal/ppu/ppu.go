@@ -45,13 +45,18 @@ type PPURegister struct {
 	ppuData   byte
 }
 
+const (
+	SPRITECOUNT = 64
+	SPRITESIZE  = 4
+)
+
 type PPU struct {
 	reg        PPURegister
 	clock      uint16
 	scanline   uint16
 	bus        *ppubus.PPUBUS
 	inter      *interrupts.Interrupts
-	sprites    *ebiten.Image
+	sprites    [SPRITECOUNT]Sprite
 	background *ebiten.Image
 	info       *cpudebug.DebugInfo
 	oam        mem.RAM
@@ -67,7 +72,9 @@ func NewPPU(bus *ppubus.PPUBUS, inter *interrupts.Interrupts, palette *mem.RAM, 
 	ppu := new(PPU)
 	ppu.bus = bus
 	ppu.inter = inter
-	ppu.sprites = ebiten.NewImage(WIDTH, HEIGHT)
+	for i := 0; i < SPRITECOUNT; i++ {
+		ppu.sprites[i].Image = ebiten.NewImage(8, 8)
+	}
 	ppu.background = ebiten.NewImage(WIDTH, HEIGHT)
 	ppu.info = info
 	ppu.oam = mem.NewRAM(0x0100)
@@ -208,106 +215,133 @@ func getColorTable() []color.RGBA {
 	}
 }
 
-type Palette [4]byte
-type Sprite [8][8]byte
+type Sprite struct {
+	Image *ebiten.Image
+	X     uint8
+	Y     uint8
+}
 
 type Tile struct {
-	sprite *Sprite
+	pixel *[8][8]byte
 }
 
 const (
-	TILE_ROW = 30
-	TILE_COL = 32
+	TILEROWSIZE = 30
+	TILECOLSIZE = 32
 )
 
 var colors = getColorTable()
 
+func tileToBlock(tile uint8) uint8 {
+	return tile / 2
+}
+
+func tileToPixel(tile uint8) uint8 {
+	return tile * 8
+}
+
+func pixelToTile(pixel uint16) uint8 {
+	return uint8(pixel / 8)
+}
+
 //Sprite -> Palette -> Color
-func (ppu *PPU) getColor(tile *Tile, paletteID, x, y uint16) color.Color {
-	colorID := ppu.bus.Read(0x3F00 + paletteID*4 + uint16(tile.sprite[y][x]))
+func (ppu *PPU) getColor(pixel *[8][8]byte, paletteID, x, y uint8) color.Color {
+	colorID := ppu.bus.Read(uint16(0x3F00) + uint16(paletteID)*4 + uint16(pixel[y][x]))
 	return colors[colorID]
 }
 
 //Tile -> Pixel
-func (ppu *PPU) fillTileInImage(tile *Tile, paletteID, tilex, tiley uint16) {
+func (ppu *PPU) fillTileInImage(tile *Tile, tileCol, tileRow, paletteID uint8) {
 	for y := uint16(0); y < 8; y++ {
 		for x := uint16(0); x < 8; x++ {
-			ppu.background.Set(int(tilex*8+x), int(tiley*8+y), ppu.getColor(tile, paletteID, x, y))
+			px := uint16(tileToPixel(tileCol))
+			py := uint16(tileToPixel(tileRow))
+			ppu.background.Set(int(px+x), int(py+y), ppu.getColor(tile.pixel, paletteID, uint8(x), uint8(y)))
 		}
 	}
 }
 
-func (ppu *PPU) getSpriteID(tileX, tileY uint16) uint16 {
+func (ppu *PPU) getCharacterPatternID(tileCol, tileRow uint8) uint8 {
 	//0x2000, 0x2400, 0x2800, 0x3200 NameTable
 	baseAddr := ppu.reg.ppuCtrl.nameTableAddr
-	spriteID := ppu.bus.Read(baseAddr + tileY*TILE_COL + tileX)
-	return uint16(spriteID)
+	patternID := ppu.bus.Read(baseAddr + uint16(tileRow)*TILECOLSIZE + uint16(tileCol))
+	return patternID
 }
 
-func (ppu *PPU) getPaletteID(tileX, tileY uint16) uint16 {
+func (ppu *PPU) getPaletteID(tileCol, tileRow uint8) uint8 {
 	//0x23C0, 0x27C0, 0x2BC0, 0x2FC0 Attribute Table
 	baseAddr := ppu.reg.ppuCtrl.nameTableAddr + uint16(0x03C0)
-	blockx := tileX / 2
-	blocky := tileY / 2
-	attribute := ppu.bus.Read(baseAddr + blocky/2*8 + blockx/2)
+	blockx := tileToBlock(tileCol)
+	blocky := tileToBlock(tileRow)
+	attribute := ppu.bus.Read(baseAddr + uint16(blocky)/2*8 + uint16(blockx)/2)
 	offsetx := blockx % 2
 	offsety := blocky % 2
 	blockID := offsety*2 + offsetx
 	paletteID := (attribute >> uint8(blockID*2)) & 0x03
-	return uint16(paletteID)
+	return paletteID
 }
 
-func (ppu *PPU) NewSprite(spriteID, baseAddr uint16) *Sprite {
-	sprite := new(Sprite)
-	baseAddr += 0x0010 * spriteID
+func (ppu *PPU) buildPatternTable(patternID uint8, patternTableAddr uint16) *[8][8]byte {
+	pixel := new([8][8]byte)
+	baseAddr := patternTableAddr + uint16(patternID)*0x10
 	for y := uint16(0); y < 8; y++ {
 		low := ppu.bus.Read(baseAddr + y)
 		high := ppu.bus.Read(baseAddr + y + 8)
 		for x := 0; x < 8; x++ {
-			if (high & (1 << (7 - x))) != 0 {
-				sprite[y][x] += 2
+			if pkg.Uint8tob(high & (0x80 >> x)) {
+				pixel[y][x] += 2
 			}
-			if (low & (1 << (7 - x))) != 0 {
-				sprite[y][x] += 1
+			if pkg.Uint8tob(low & (0x80 >> x)) {
+				pixel[y][x] += 1
 			}
 		}
 	}
-	return sprite
+	return pixel
 }
 
-func (ppu *PPU) PlaceTile(x, y uint16) {
+func (ppu *PPU) PlaceTile(tileCol, tileRow uint8) {
 	tile := new(Tile)
-	spriteID := ppu.getSpriteID(x, y)
-	paletteID := ppu.getPaletteID(x, y)
-	tile.sprite = ppu.NewSprite(spriteID, ppu.reg.ppuCtrl.backgroundPatternTableAddr)
-	ppu.fillTileInImage(tile, paletteID, x, y)
+	patternID := ppu.getCharacterPatternID(tileCol, tileRow)
+	paletteID := ppu.getPaletteID(tileCol, tileRow)
+	tile.pixel = ppu.buildPatternTable(patternID, ppu.reg.ppuCtrl.backgroundPatternTableAddr)
+	ppu.fillTileInImage(tile, tileCol, tileRow, paletteID)
 }
 
 func (ppu *PPU) fillBackGround() {
-	tiley := ppu.scanline / 8
-	for tilex := uint16(0); tilex < TILE_COL; tilex++ {
-		ppu.PlaceTile(tilex, tiley)
+	tileRow := uint8(ppu.scanline / 8)
+	for tileCol := uint8(0); tileCol < TILECOLSIZE; tileCol++ {
+		ppu.PlaceTile(tileCol, tileRow)
 	}
 }
 
-func (ppu *PPU) PlaceSprite(sx, sy, attribute uint16, spriteID uint8) {
-	tile := new(Tile)
-	tile.sprite = ppu.NewSprite(uint16(spriteID), ppu.reg.ppuCtrl.spritePatternTableAddr)
-	paletteID := uint16(attribute & 0x03)
-	for y := uint16(0); y < 8; y++ {
-		for x := uint16(0); x < 8; x++ {
-			ppu.sprites.Set(int(sx+x), int(sy+y), ppu.getColor(tile, paletteID, x, y))
+func (ppu *PPU) fillSpriteInImage(sprite *Sprite, attribute, patternID uint8) {
+	pixel := ppu.buildPatternTable(patternID, ppu.reg.ppuCtrl.spritePatternTableAddr)
+	paletteID := 0x04 + (attribute & 0x03)
+	flipHorizontal := pkg.Uint8tob(attribute & 0x40)
+	flipVertical := pkg.Uint8tob(attribute & 0x80)
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			xx := x
+			yy := y
+			if flipHorizontal {
+				xx = 7 - xx
+			}
+			if flipVertical {
+				yy = 7 - yy
+			}
+			sprite.Image.Set(x, y, ppu.getColor(pixel, paletteID, uint8(xx), uint8(yy)))
 		}
 	}
 }
 
 func (ppu *PPU) fillSprites() {
-	for i := uint16(0); i < 64; i++ {
-		y := uint16(ppu.oam.Read(i * 4)) + 1
-		spriteID := ppu.oam.Read(i*4 + 1)
-		attribute := uint16(ppu.oam.Read(i*4 + 2))
-		x := uint16(ppu.oam.Read(i*4 + 3))
-		ppu.PlaceSprite(x, y, attribute, spriteID)
+	for i := uint16(0); i < SPRITECOUNT; i++ {
+		offset := i * SPRITESIZE
+		ppu.sprites[i].Y = ppu.oam.Read(offset)
+		patternID := ppu.oam.Read(offset + 1)
+		attribute := ppu.oam.Read(offset + 2)
+		ppu.sprites[i].X = ppu.oam.Read(offset + 3)
+		ppu.fillSpriteInImage(&ppu.sprites[i], attribute, patternID)
 	}
 }
 
@@ -323,7 +357,7 @@ func (ppu *PPU) unsetVBlank() {
 	ppu.inter.UnSetNMI()
 }
 
-func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
+func (ppu *PPU) Run(cycles uint16) (*ebiten.Image, *[SPRITECOUNT]Sprite) {
 	//ppu.info.PPUX = ppu.clock
 	//ppu.info.PPUY = ppu.scanline
 	ppu.clock += cycles
@@ -347,12 +381,9 @@ func (ppu *PPU) Run(cycles uint16) *ebiten.Image {
 		//Pre-render scanscanline (-1 or 261)
 		if ppu.scanline == 261 {
 			ppu.unsetVBlank()
-			//fmt.Println()
-			//fmt.Println()
 			ppu.scanline = 0
-			ppu.background.DrawImage(ppu.sprites, nil)
-			return ppu.background
+			return ppu.background, &ppu.sprites
 		}
 	}
-	return nil
+	return nil, nil
 }
