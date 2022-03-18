@@ -217,8 +217,8 @@ func getColorTable() []color.RGBA {
 
 type Sprite struct {
 	Image *ebiten.Image
-	X     uint8
-	Y     uint8
+	X     uint16
+	Y     uint16
 }
 
 type Tile struct {
@@ -251,7 +251,7 @@ func (ppu *PPU) getColor(pixel *[8][8]byte, paletteID, x, y uint8) color.Color {
 }
 
 //Tile -> Pixel
-func (ppu *PPU) fillTileInImage(tile *Tile, tileCol, tileRow, paletteID uint8) {
+func (ppu *PPU) fillTileInBackground(tile *Tile, tileCol, tileRow, paletteID uint8) {
 	for y := uint16(0); y < 8; y++ {
 		for x := uint16(0); x < 8; x++ {
 			px := uint16(tileToPixel(tileCol))
@@ -299,24 +299,25 @@ func (ppu *PPU) buildPatternTable(patternID uint8, patternTableAddr uint16) *[8]
 	return pixel
 }
 
-func (ppu *PPU) PlaceTile(tileCol, tileRow uint8) {
+func (ppu *PPU) placeTile(tileCol, tileRow uint8) {
 	tile := new(Tile)
 	patternID := ppu.getCharacterPatternID(tileCol, tileRow)
 	paletteID := ppu.getPaletteID(tileCol, tileRow)
 	tile.pixel = ppu.buildPatternTable(patternID, ppu.reg.ppuCtrl.backgroundPatternTableAddr)
-	ppu.fillTileInImage(tile, tileCol, tileRow, paletteID)
+	ppu.fillTileInBackground(tile, tileCol, tileRow, paletteID)
 }
 
 func (ppu *PPU) fillBackGround() {
 	tileRow := uint8(ppu.scanline / 8)
 	for tileCol := uint8(0); tileCol < TILECOLSIZE; tileCol++ {
-		ppu.PlaceTile(tileCol, tileRow)
+		ppu.placeTile(tileCol, tileRow)
 	}
 }
 
 func (ppu *PPU) fillSpriteInImage(sprite *Sprite, attribute, patternID uint8) {
 	pixel := ppu.buildPatternTable(patternID, ppu.reg.ppuCtrl.spritePatternTableAddr)
 	paletteID := 0x04 + (attribute & 0x03)
+	//priority := pkg.Uint8tob(attribute & 0x20)
 	flipHorizontal := pkg.Uint8tob(attribute & 0x40)
 	flipVertical := pkg.Uint8tob(attribute & 0x80)
 	for y := 0; y < 8; y++ {
@@ -337,12 +338,24 @@ func (ppu *PPU) fillSpriteInImage(sprite *Sprite, attribute, patternID uint8) {
 func (ppu *PPU) fillSprites() {
 	for i := uint16(0); i < SPRITECOUNT; i++ {
 		offset := i * SPRITESIZE
-		ppu.sprites[i].Y = ppu.oam.Read(offset)
+		ppu.sprites[i].Y = uint16(ppu.oam.Read(offset)) + 1
 		patternID := ppu.oam.Read(offset + 1)
 		attribute := ppu.oam.Read(offset + 2)
-		ppu.sprites[i].X = ppu.oam.Read(offset + 3)
+		ppu.sprites[i].X = uint16(ppu.oam.Read(offset + 3))
 		ppu.fillSpriteInImage(&ppu.sprites[i], attribute, patternID)
 	}
+}
+
+func (ppu *PPU) isSpriteZeroHits() bool {
+	return uint16(ppu.sprites[0].Y) == ppu.scanline
+}
+
+func (ppu *PPU) setSpriteZeroHits() {
+	ppu.reg.ppuStatus |= (1 << 6)
+}
+
+func (ppu *PPU) unsetSpriteZeroHits() {
+	ppu.reg.ppuStatus ^= (1 << 6)
 }
 
 func (ppu *PPU) setVBlank() {
@@ -368,6 +381,10 @@ func (ppu *PPU) Run(cycles uint16) (*ebiten.Image, *[SPRITECOUNT]Sprite) {
 	}
 	if ppu.clock >= 341 {
 		ppu.clock -= 341
+
+		if ppu.isSpriteZeroHits() {
+			ppu.setSpriteZeroHits()
+		}
 		//Visible scanscanlines (0-239)
 		if ppu.scanline%8 == 0 && ppu.scanline <= 239 {
 			ppu.fillBackGround()
@@ -381,7 +398,17 @@ func (ppu *PPU) Run(cycles uint16) (*ebiten.Image, *[SPRITECOUNT]Sprite) {
 		//Pre-render scanscanline (-1 or 261)
 		if ppu.scanline == 261 {
 			ppu.unsetVBlank()
+			ppu.unsetSpriteZeroHits()
 			ppu.scanline = 0
+			if !ppu.reg.ppuMask.showBackground && !ppu.reg.ppuMask.showSprite {
+				return nil, nil
+			}
+			if !ppu.reg.ppuMask.showBackground && ppu.reg.ppuMask.showSprite {
+				return nil, &ppu.sprites
+			}
+			if ppu.reg.ppuMask.showBackground && !ppu.reg.ppuMask.showSprite {
+				return ppu.background, nil
+			}
 			return ppu.background, &ppu.sprites
 		}
 	}

@@ -8,7 +8,6 @@ import (
 
 type PAD struct {
 	mem.RAM
-	keys  uint8
 	latch bool
 }
 
@@ -20,17 +19,17 @@ func NewPAD() *PAD {
 }
 
 func (pad *PAD) SetPressKeys() {
-	pad.keys = 0x00
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyM)) * 0x80 //0 - A
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyN)) * 0x40 //1 - B
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyC)) * 0x20 //2 - Select
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyV)) * 0x10 //3 - Start
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyW)) * 0x08 //4 - Up
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyS)) * 0x04 //5 - Down
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyA)) * 0x02 //6 - Left
-	pad.keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyD)) * 0x01 //7 - Right
-	pad.RAM.Write(0x0000, pad.keys)
-	pad.RAM.Write(0x0001, pad.keys)
+	keys := uint8(0x00)
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyM)) * 0x80 //0 - A
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyN)) * 0x40 //1 - B
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyC)) * 0x20 //2 - Select
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyV)) * 0x10 //3 - Start
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyW)) * 0x08 //4 - Up
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyS)) * 0x04 //5 - Down
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyA)) * 0x02 //6 - Left
+	keys |= pkg.Btouint8(ebiten.IsKeyPressed(ebiten.KeyD)) * 0x01 //7 - Right
+	pad.RAM.Write(0x0000, keys)
+	pad.RAM.Write(0x0001, keys)
 }
 
 func (pad *PAD) Read(address uint16) uint8 {

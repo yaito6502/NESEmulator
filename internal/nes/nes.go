@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	WIDTH = 256
+	WIDTH  = 256
 	HEIGHT = 240
-	SCALE = 1
+	SCALE  = 4
 )
 
 type NES struct {
@@ -33,7 +33,7 @@ type NES struct {
 	PPUBUS *ppubus.PPUBUS
 	//APU *apu
 	PAD        *pad.PAD
-	inter      interrupts.Interrupts
+	inter      *interrupts.Interrupts
 	background *ebiten.Image
 	sprites    *[ppu.SPRITECOUNT]ppu.Sprite
 	Info       cpudebug.DebugInfo
@@ -45,12 +45,12 @@ func NewNES(cart *cartridge.Cartridge) *NES {
 	nes.WRAM = mem.NewRAM(0x0800)
 	nes.VRAM = mem.NewRAM(0x0800)
 	nes.PAD = pad.NewPAD()
-	nes.inter = *interrupts.NewInterrupts()
+	nes.inter = interrupts.NewInterrupts()
 	palette := mem.NewRAM(0x0020)
 	nes.PPUBUS = ppubus.NewPPUBUS(&cart.CharacterRom, &palette, &nes.VRAM)
-	nes.PPU = ppu.NewPPU(nes.PPUBUS, &nes.inter, &palette, &nes.Info)
+	nes.PPU = ppu.NewPPU(nes.PPUBUS, nes.inter, &palette, &nes.Info)
 	nes.CPUBUS = cpubus.NewCPUBUS(&nes.WRAM, nes.PPU, &cart.ProgramRom, nes.PAD)
-	nes.CPU = cpu.NewCPU(nes.CPUBUS, &nes.inter, &nes.Info)
+	nes.CPU = cpu.NewCPU(nes.CPUBUS, nes.inter, &nes.Info)
 	return nes
 }
 
@@ -66,10 +66,10 @@ func (nes *NES) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
 		os.Exit(0)
 	}
+	nes.PAD.SetPressKeys()
 	nes.background = nil
 	nes.sprites = nil
-	nes.PAD.SetPressKeys()
-	for nes.background == nil || nes.sprites == nil {
+	for nes.background == nil && nes.sprites == nil {
 		cycle := nes.CPU.Run()
 		nes.background, nes.sprites = nes.PPU.Run(uint16(cycle) * 3)
 		nes.cycles += uint64(cycle)
@@ -80,16 +80,30 @@ func (nes *NES) Update() error {
 }
 
 func (nes *NES) Draw(screen *ebiten.Image) {
-	for i := 0; i < ppu.SPRITECOUNT; i++ {
-		spritesop := new(ebiten.DrawImageOptions)
-		spritesop.GeoM.Translate(float64(nes.sprites[i].X), float64(nes.sprites[i].Y))
-		nes.background.DrawImage(nes.sprites[i].Image, spritesop)
+	op := new(ebiten.DrawImageOptions)
+	op.GeoM.Scale(SCALE, SCALE)
+	if nes.background != nil {
+		nes.DrawBackground(screen, op)
 	}
-	screenop := new(ebiten.DrawImageOptions)
-	screenop.GeoM.Scale(SCALE, SCALE)
-	screen.DrawImage(nes.background, screenop)
-
+	if nes.sprites != nil {
+		nes.DrawSprites(screen)
+	}
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS:%0.2f TPS:%0.2f", ebiten.CurrentFPS(), ebiten.CurrentTPS()))
+}
+
+func (nes *NES) DrawBackground(screen *ebiten.Image, op *ebiten.DrawImageOptions) {
+	screen.DrawImage(nes.background, op)
+}
+
+func (nes *NES) DrawSprites(screen *ebiten.Image) {
+	op := new(ebiten.DrawImageOptions)
+	for i := 0; i < ppu.SPRITECOUNT; i++ {
+		sprite := nes.sprites[ppu.SPRITECOUNT-(i+1)]
+		op.GeoM.Translate(float64(sprite.X), float64(sprite.Y))
+		op.GeoM.Scale(SCALE, SCALE)
+		screen.DrawImage(sprite.Image, op)
+		op.GeoM.Reset()
+	}
 }
 
 func (nes *NES) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
